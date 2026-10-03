@@ -3,8 +3,9 @@
 #
 #   scripts/decompile.sh [binary] [output-dir]
 #
-# Defaults to etc/original-binaries/ski32.exe -> analysis/ski32/. If <output-dir>/symbols.tsv exists,
-# its names/signatures are applied before export. The Ghidra project is kept in
+# Defaults to etc/original-binaries/ski32.exe -> analysis/ski32/. If <output-dir>/types.h
+# exists its types are parsed in first, then <output-dir>/symbols.tsv names/signatures are
+# applied before export. The Ghidra project is kept in
 # build/ghidra/ (gitignored) so it can also be opened in the Ghidra GUI.
 set -euo pipefail
 
@@ -19,6 +20,9 @@ crt_start="${CRT_START:-00406cd0}"
 mkdir -p "$root/build/ghidra" "$out"
 
 post=(-postScript CreateMissingFunctions.java)
+if [[ -f "$out/types.h" ]]; then
+  post+=(-postScript ApplyTypes.java "$out/types.h")
+fi
 if [[ -f "$out/symbols.tsv" ]]; then
   post+=(-postScript ApplySymbols.java "$out/symbols.tsv")
 fi

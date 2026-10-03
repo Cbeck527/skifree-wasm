@@ -1,86 +1,276 @@
-# Hand-maintained symbols for ski32.exe, applied by scripts/ghidra/ApplySymbols.java.
+# Hand-maintained symbols for ski32.exe, applied by scripts/ghidra/ApplySymbols.java
+# after types.h has been parsed in by ApplyTypes.java.
 # address	kind	name	signature	comment
 #
 # Game code is compiled __fastcall by default (first two args in ECX/EDX), so any
 # signature given here for a game function must say __fastcall unless it's a
-# Windows callback (WinMain/WndProc/TimerProc are __stdcall).
-# Leave the signature column empty to keep Ghidra's inferred prototype.
+# Windows callback (WinMain/WndProc/TimerProc are __stdcall). Parameter counts
+# must match what the code actually passes. Leave the signature column empty to
+# keep Ghidra's inferred prototype.
 #
-# --- Game code (0x401000-0x406cc1, compiled from ski2.c) ---
+# ===== Game code (0x401000-0x406cc1, compiled from ski2.c) =====
 #
-# Main loop / timing
-004047e0	func	WinMain	int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char * lpCmdLine, int nCmdShow)	Called from entry (CRT WinMainCRTStartup). "nosound" on the command line disables sound.
-004048c0	func	AllocGlobals			LocalAlloc string cache (0x50), sprite table (0x5a0 = 90 x 16), actor pool (8000 = 100 x 0x50), 0x2400 buffer.
-00404970	func	InitGameState			srand(GetTickCount()), builds actor free list, zeroes game globals, tick interval = 40ms.
-00404a00	func	InitActorPool			Links the 100 x 0x50-byte actors into a free list.
-00404a80	func	NewGame			Creates the player actor (type 0, state 3), builds courses, starts the timer.
-00404ad0	func	StartGameTimer			SetTimer(hwndMain, 666, 40ms, GameTimerProc).
-004047c0	func	GameTimerProc	void __stdcall GameTimerProc(HWND hwnd, UINT msg, UINT idEvent, DWORD dwTime)	TIMERPROC installed by StartGameTimer; runs GameTick while the game is active.
-00401000	func	GameTick			One frame: measure dt, UpdateWorld, DrawActors, refresh status panel every ~327ms.
-00401e50	func	UpdateWorld			Per frame: UpdateActor for each actor, cull off-screen actors, pairwise collisions, spawn scenery at edges every 60px scrolled.
+# --- Startup, main loop, timing ---
+004047e0	func	WinMain	int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char * lpCmdLine, int nCmdShow)	Called from WinMainCRTStartup. "nosound" on the command line disables sound.
+004048c0	func	AllocGlobals	int AllocGlobals(void)	LocalAlloc: string cache (20 ptrs), sprite table (90 Sprites), actor pool (100 Actors), placements (256).
+00404970	func	InitGameState	int InitGameState(void)	srand(GetTickCount()), empty actor lists, zero view/course/score state, 40ms tick.
+00404a00	func	InitActorPool	void InitActorPool(void)	Links the 100 actors into the free list.
+00404a70	func	ResetPlacements	void ResetPlacements(void)
+00404a80	func	NewGame	int NewGame(void)	Player = NewActor(AT_PLAYER, PS_LEFT) at (0,0); title signs; BuildCourses; StartGameTimer.
+00406500	func	RestartGame	void RestartGame(void)	F2, Enter after being eaten, or click after being eaten.
+004052d0	func	InitInstance	int __fastcall InitInstance(HINSTANCE hInstance, int hPrevInstance, int nCmdShow)	Single instance check, sound slots, RegisterClass SkiMain/SkiStatus, CreateWindow.
+00404ad0	func	StartGameTimer	void StartGameTimer(void)	SetTimer(g_hwndMain, 666, g_tickMs, GameTimerProc). Shifts the course start time by the paused interval.
+004057c0	func	StopGameTimer	void StopGameTimer(void)
+00405760	func	TogglePause	void TogglePause(void)	F3. Title shows "Ski Paused ... Press F3 to continue". Also called by AssertFailed.
+00405a10	func	UpdateActiveState	void UpdateActiveState(void)	Game runs only while the window is active and not minimized.
+004047c0	func	GameTimerProc	void __stdcall GameTimerProc(HWND hwnd, UINT msg, UINT idEvent, DWORD dwTime)	TIMERPROC; runs GameTick while g_gameActive.
+00401000	func	GameTick	void GameTick(void)	One frame: dt, UpdateWorld, DrawActors, status panel every ~327ms.
+00401e50	func	UpdateWorld	void UpdateWorld(void)	UpdateActor each free actor, cull off-screen, update placements, collisions, spawn at edges every 60px scrolled, 1/666 snowboarder.
 #
-# Actors (100-entry pool of 0x50-byte structs; see NOTES.md for field offsets)
+# --- Actor pool and lifecycle ---
+00402330	func	AllocActor	Actor * AllocActor(void)	Copies g_actorTemplate into a free actor at the head of the active list.
+00402280	func	CloneActor	Actor * __fastcall CloneActor(Actor * src, int insertAfterSrc)
+004020d0	func	NewActor	Actor * __fastcall NewActor(ActorType type, ActorState state)	For animated actors.
+004026a0	func	NewActorWithSprite	Actor * __fastcall NewActorWithSprite(ActorType type, unsigned short spriteId)	For static actors.
+00401350	func	DeleteActor	void __fastcall DeleteActor(Actor * a)	Sets AF_DELETE unless the actor is still on screen (callers spawn an erase ghost first).
+00401390	func	FreeDeletedActors	void FreeDeletedActors(void)	Returns AF_DELETE actors to the free list; clears placement->actor, g_player, g_viewActor.
+00402120	func	SetActorState	Actor * __fastcall SetActorState(Actor * a, ActorState state)	Also sets the sprite from g_stateSprite.
+00402180	func	SetActorSprite	Actor * __fastcall SetActorSprite(Actor * a, unsigned short spriteId)	Keeps g_onScreenArea in sync; sets AF_MOVED and AF_FLAT.
+00402310	func	IsFlatSprite	int __fastcall IsFlatSprite(short spriteId)	Mogul (27) and dog mess (82) lie on the snow.
+00402390	func	SetActorPos	Actor * __fastcall SetActorPos(Actor * a, short x, short y, short z)	Scrolls the view when a == g_viewActor.
+00402be0	func	MoveActor	Actor * __fastcall MoveActor(Actor * a)	pos += velocity (twice in fast mode); gravity: dz-- while airborne.
+00403430	func	ApplyMotion	Actor * __fastcall ApplyMotion(Actor * a, Motion * m)	Steers dy toward m->dyMax and |dx| toward m->dxRatio*dy/2.
+00404070	func	ActorOrGhost	Actor * __fastcall ActorOrGhost(Actor * a)	The ghost holds the previous position, so this gives "where it was".
+#
+# --- Per-type behaviour ---
+004028e0	func	UpdateActor	Actor * __fastcall UpdateActor(Actor * a)	Dispatch on type. The player is inline: crash recovery, ApplyMotion(g_playerMotion), landing, style points, course checks.
+00403540	func	UpdateSkier	Actor * __fastcall UpdateSkier(Actor * a)	AT_SKIER: wanders between SK_DOWN/LEFT/RIGHT.
+00403610	func	UpdateDog	Actor * __fastcall UpdateDog(Actor * a)	AT_DOG: walks, woofs, occasionally leaves sprite 82 (sound slot 8).
+00403910	func	UpdateSnowboarder	Actor * __fastcall UpdateSnowboarder(Actor * a)	AT_SNOWBOARDER: zig-zags; crash tumble 34-38.
+00403750	func	UpdateBurningTree	Actor * __fastcall UpdateBurningTree(Actor * a)	AT_BURNING_TREE: FIRE1..FIRE4 loop.
+004037b0	func	UpdateWalkingTree	Actor * __fastcall UpdateWalkingTree(Actor * a)	AT_WALKING_TREE: 1/100 per tick starts walking left or right.
+00403a00	func	HandleCollision	Actor * __fastcall HandleCollision(Actor * a, Actor * b)	What happens to a when it overlaps b. Called both ways for each overlapping pair.
 004020b0	func	Random	short __fastcall Random(short n)	rand() % n
-004020d0	func	NewActor			NewActor(type, state)
-004026a0	func	NewActorWithSprite			NewActorWithSprite(type, spriteId): constructor for static actors.
-00402120	func	SetActorState			Sets actor->state (+0x1c) and its sprite via the state->sprite table at 0x40a1ac.
-00402180	func	SetActorSprite
-00402390	func	SetActorPos			SetActorPos(actor, x, y, z); scrolls the view when the actor is the player.
-00401410	func	GetActorScreenRect			Computes (and caches at +0x20) the actor's bounding rect; sets flag 4.
+00403420	func	AddStyle	void __fastcall AddStyle(int points)	Only counts while on the Freestyle course.
+#
+# --- Spawning scenery ---
+004025c0	func	SpawnAtEdge	Actor * __fastcall SpawnAtEdge(int edge)	edge 0 left, 1 right, 2 top, 3 bottom. Picks a type by course zone.
+004024f0	func	RandomEdgePos	void __fastcall RandomEdgePos(int edge, short * x, short * y)	Random world position just outside the given screen edge.
+00402350	func	PlaceAtEdge	Actor * __fastcall PlaceAtEdge(Actor * a, int edge)
+004026f0	func	PickTypeOpenSlope	ActorType PickTypeOpenSlope(void)	Mostly trees/bumps/rocks; 5% walking tree... see NOTES.md.
+00402770	func	PickTypeSlalom	ActorType PickTypeSlalom(void)	Slalom course zone: moguls only.
+004027a0	func	PickTypeTreeSlalom	ActorType PickTypeTreeSlalom(void)	Tree Slalom zone: trees, 1/64 dog.
+004027e0	func	PickTypeFreestyle	ActorType PickTypeFreestyle(void)	Freestyle zone: more bumps and jumps.
+00402850	func	PickSpriteForType	unsigned short __fastcall PickSpriteForType(ActorType type)	Static types -> random sprite variant.
+#
+# --- Placements (pre-laid-out courses, lift, yetis) ---
+00404b50	func	BuildCourses	void BuildCourses(void)	Slalom, Tree Slalom, Freestyle, lift towers, chairs, and the four yetis.
+004051e0	func	PlaceTitleSigns	void PlaceTitleSigns(void)	Title card, version, NumPad and F2/F3 signs at the start.
+00405100	func	InitPlacementList	void __fastcall InitPlacementList(PlacementList * list)
+00405120	func	AddPlacement	Placement * __fastcall AddPlacement(PlacementList * list, Placement * tmpl)	Appends a copy of tmpl to g_placements (max 256).
+004046e0	func	UpdatePlacementList	void __fastcall UpdatePlacementList(PlacementList * list)	Static list: spawns actors for placements entering the view.
+004040a0	func	UpdateMovingPlacements	void __fastcall UpdateMovingPlacements(PlacementList * list)	g_movingObjects: moves every placement, spawns those near the view.
+00404130	func	SpawnPlacementIfVisible	Actor * __fastcall SpawnPlacementIfVisible(Placement * p)
+004041c0	func	UpdateMovingPlacement	void __fastcall UpdateMovingPlacement(Placement * p)
+00404290	func	UpdateChairlift	void __fastcall UpdateChairlift(Placement * p)	Turns around at y=-1024 and y=23552; 1/1000 a snowboarder jumps off.
+00404350	func	UpdateYeti	void __fastcall UpdateYeti(Placement * p)	Waits until the player crosses its line, then chases; eating sequence after catching.
+00403130	func	SetPlacementSprite	void __fastcall SetPlacementSprite(Placement * p, unsigned short spriteId)
+#
+# --- Courses and scoring ---
+00402c60	func	CheckSlalom	void __fastcall CheckSlalom(Actor * a, short prevX, short prevY)	Start gate at y=640, x -576..-320; finish y=8640. Missed gate: +5s.
+00403180	func	CheckFreestyle	void __fastcall CheckFreestyle(Actor * a, short prevX, short prevY)	Start y=640, x -160..160; finish y=16640. Scores style points.
+00403250	func	CheckTreeSlalom	void __fastcall CheckTreeSlalom(Actor * a, short prevX, short prevY)	Start y=640, x 320..512; finish y=16640. Missed gate: +5s.
+00402e30	func	InterpolateCrossing	int __fastcall InterpolateCrossing(int v, int prevV, int y, int prevY, int lineY)	Value of v at the moment y crossed lineY (sub-tick timing).
+00402e80	func	EndCourseRun	void EndCourseRun(void)	Stops the player at the finish and redraws the status panel.
+00402ec0	func	RecordHighScore	void __fastcall RecordHighScore(char * key, int score, int isTime)	Top 10 under [Ski] in entpack.ini (keys SS, GS, FS); shows the "High Scores" box.
+#
+# --- Drawing ---
+00401060	func	DrawActors	void __fastcall DrawActors(HDC hdc, RECT * dirty)	Drops ghosts that match, marks dirty actors, groups overlaps, draws each group.
+00401540	func	DrawActor	void __fastcall DrawActor(HDC hdc, Actor * a)	Draws one overlap group back-to-front via the offscreen DC: clear to white, then per sprite OR the mask (whitens its footprint) and AND the image (white background is transparent).
+00401410	func	GetActorScreenRect	RECT * __fastcall GetActorScreenRect(Actor * a)	Computes and caches a->screenRect.
+004014b0	func	ComputeSpriteRect	void __fastcall ComputeSpriteRect(RECT * out, Sprite * s, short x, short y, short z)	World -> screen: centred on x, bottom at y - z.
 00401290	func	RectsOverlap	int __fastcall RectsOverlap(RECT * a, RECT * b)
-004025c0	func	SpawnAtEdge			SpawnAtEdge(dir): dir 0..3 = which screen edge to populate with new scenery.
-004028e0	func	UpdateActor			Dispatch on actor->type (+0x18). Type 0 (player) is handled inline: pose state machine with physics table at 0x40a308.
-00403540	func	UpdateNpcSkier			type 1, states 0x16-0x1a, sprites 28-32
-00403610	func	UpdateDog			type 2, states 0x1b-0x1e, sprites 33-36 (plays sound slot 8, "woof")
-00403910	func	UpdateSnowboarder			type 3, states 0x1f-0x26, sprites 37-44
-00403750	func	UpdateBurningTree			type 9, states 0x38-0x3b, sprites 83/84/85/84 loop
-004037b0	func	UpdateWalkingTree			type 10, states 0x3c-0x3f, sprites 49, 87-89
-00403a00	func	HandleCollision			HandleCollision(a, b), called for each overlapping pair from UpdateWorld.
-00404b50	func	BuildCourses			Lays out the Slalom / Tree Slalom / Freestyle courses (signs = sprites 61/62/63, start 57/58, finish 59/60).
+004012f0	func	RectsEqual	int __fastcall RectsEqual(RECT * a, RECT * b)
+00401b20	func	UnionRects	void __fastcall UnionRects(RECT * dst, RECT * src)
+00401a60	func	JoinDrawGroup	void __fastcall JoinDrawGroup(Actor * a, Actor * b)
+00401970	func	EnsureOffscreenSize	int __fastcall EnsureOffscreenSize(unsigned short w, unsigned short h)
+00402220	func	SpawnEraseGhost	Actor * __fastcall SpawnEraseGhost(Actor * a)	Before a drawn actor changes, leave a ghost copy that erases its old image.
+00402470	func	ScrollView	void __fastcall ScrollView(short x, short y)	Moves the view origin; shifts cached rects of other actors.
+00406060	func	SetScreenAnchor	void __fastcall SetScreenAnchor(short x, short y)	Where the view actor sits on screen (centre, 1/3 down).
+00406100	func	RedrawRect	void __fastcall RedrawRect(HDC hdc, RECT * r)
+00401b80	func	DrawStatusPanel	void __fastcall DrawStatusPanel(HDC hdc)	Time / Dist / Speed / Style values.
+00401d70	func	FormatTime	int __fastcall FormatTime(int ms, char * out)	ms -> "h:mm:ss.cc" (string 11). Returns the length.
+00401e20	func	DrawStatusText	void __fastcall DrawStatusText(HDC hdc, char * text, short x, short * y, int len)	TextOut, then y += line height.
 #
-# Drawing
-00401060	func	DrawActors			Redraws actors whose rects changed or intersect the dirty rect.
-00401540	func	DrawActor			BitBlt/PatBlt one actor.
-00401b80	func	DrawStatusPanel			Time / Dist / Speed / Style readout in the SkiStatus window.
-00401d70	func	FormatTime			ms -> "h:mm:ss.cc" (string table id 11).
-00401e20	func	DrawStatusText			TextOutA wrapper.
-#
-# Window / resources
-004052d0	func	InitInstance			RegisterClassA "SkiMain" (MainWndProc) and "SkiStatus" (StatusWndProc), CreateWindowExA, loads sounds.
+# --- Windows and resources ---
 00405800	func	MainWndProc	LRESULT __stdcall MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)	Registered as lpfnWndProc in RegisterClassA; only reached via pointer.
 004068d0	func	StatusWndProc	LRESULT __stdcall StatusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)	Window procedure for the "SkiStatus" child window.
-00405a40	func	LoadBitmaps			WM_CREATE. "Whoa, like, can't load bitmaps!" on failure.
-00405ec0	func	FreeBitmaps			WM_DESTROY.
-004060b0	func	OnPaint			WM_PAINT for the main window.
-00406170	func	OnKeyDown			WM_KEYDOWN (arrows / numpad / F2 restart / F3 pause).
-00406780	func	OnChar			WM_CHAR.
-00406550	func	OnMouseMove			WM_MOUSEMOVE: steer toward the cursor.
-004066d0	func	OnMouseClick			WM_LBUTTONDOWN / WM_LBUTTONDBLCLK.
-00401cf0	func	GetResString			LoadStringA with a per-id cache.
-00401240	func	AssertFailed	void __fastcall AssertFailed(char * file, unsigned int line)	MessageBox "Assertion Failed" / "%s line %u".
-00404950	func	ErrorBox			MessageBoxA with the "SkiFree" caption.
-00402ec0	func	HighScoresIni			Reads/writes high scores under [Ski] in entpack.ini.
+00405a40	func	LoadBitmaps	int __fastcall LoadBitmaps(HWND hwnd)	WM_CREATE. "Whoa, like, can't load bitmaps!" on failure.
+00405ab0	func	LoadSpriteStrips	int __fastcall LoadSpriteStrips(HDC hdc)	Packs bitmaps 1-89 into two image+mask strips (<=32px wide and wider); fills g_sprites.
+00405ea0	func	LoadBitmapRes	HBITMAP __fastcall LoadBitmapRes(unsigned int id)
+00405ec0	func	FreeBitmaps	void __fastcall FreeBitmaps(HWND hwnd)	WM_DESTROY.
+00405fa0	func	OnResize	void __fastcall OnResize(HWND hwnd)	Client rect, screen anchor, spawn rect (client + 120px), spawn area budget.
+004060b0	func	OnPaint	void __fastcall OnPaint(HWND hwnd)
+00406170	func	OnKeyDown	void __fastcall OnKeyDown(UINT vk)	Arrows/NumPad steer, Insert/NumPad0 hop, F2 restart, F3 pause, Esc minimize.
+00406780	func	OnChar	void __fastcall OnChar(UINT ch)	'f' fast mode; debug keys x/X/y/Y nudge the player, r redraw, t single tick.
+00406550	func	OnMouseMove	void __fastcall OnMouseMove(short x, short y)	Steer toward the cursor.
+004065e0	func	DirStateFromMouse	ActorState __fastcall DirStateFromMouse(short dx, short dy)	On the ground: PS_DOWN..PS_RIGHT from the cursor angle.
+00406670	func	AirStateFromMouse	ActorState __fastcall AirStateFromMouse(short dx, short dy)	In the air: PS_JUMP..PS_JUMP_BACK from the cursor quadrant.
+004066d0	func	OnMouseClick	void OnMouseClick(void)	Click: hop on the ground, flip in the air, restart if eaten.
+00406890	func	PositionStatusWindow	void PositionStatusWindow(void)	Top-right corner of the main window.
+00406970	func	PaintStatusWindow	void __fastcall PaintStatusWindow(HWND hwnd)
+00406a70	func	InitStatusWindow	int __fastcall InitStatusWindow(HWND hwnd)	Measures the labels to size the panel.
+00406c50	func	MeasureTextMax	void __fastcall MeasureTextMax(HDC hdc, short * maxWidth, char * text, int len)
+00406c80	func	FreeStatusWindow	void __fastcall FreeStatusWindow(HWND hwnd)
+00401cf0	func	GetResString	char * __fastcall GetResString(UINT id)	LoadStringA with a per-id cache.
+00401240	func	AssertFailed	void __fastcall AssertFailed(char * file, unsigned int line)	"Assertion Failed" / "%s line %u" box, then pauses.
+00401270	func	AssertMessageBox	void __fastcall AssertMessageBox(char * title, char * text)	OK/Cancel; Cancel destroys the main window.
+00404950	func	ErrorBox	void __fastcall ErrorBox(char * text)	MessageBoxA with the "SkiFree" caption.
 #
-# Sound (dead in this build: no WAVE resources in ski32.exe)
-00405620	func	InitSound			Stores the sndPlaySoundA pointer.
-00405640	func	LoadWaveResource			FindResource(id, "WAVE"); always fails in ski32.exe.
-004056a0	func	FreeSounds
-00405730	func	FreeWaveResource
-00402ba0	func	PlaySoundSlot			sndPlaySound(ptr, SND_ASYNC|SND_MEMORY) if the slot loaded; never true here.
+# --- Sound (dead in this build: no WAVE resources in ski32.exe) ---
+00405620	func	InitSound	int InitSound(void)	Stores the sndPlaySoundA pointer.
+00405640	func	LoadWaveResource	int __fastcall LoadWaveResource(unsigned int id, Sound * snd)	FindResource(id, "WAVE"); always fails in ski32.exe.
+004056a0	func	FreeSounds	void FreeSounds(void)
+00405730	func	FreeWaveResource	void __fastcall FreeWaveResource(Sound * snd)
+00402ba0	func	PlaySoundSlot	void __fastcall PlaySoundSlot(Sound * snd)	sndPlaySound(data, SND_ASYNC|SND_MEMORY) if the slot loaded; never true here.
 #
-# --- Statically linked MSVC 6 C runtime (0x406cd0-end) ---
+# ===== Statically linked MSVC 6 C runtime (0x406cd0-end) =====
 00406cd0	func	srand	void __cdecl srand(unsigned int seed)
 00406cda	func	rand	int __cdecl rand(void)	MS LCG: seed = seed*0x343fd + 0x269ec3; return (seed>>16)&0x7fff
+00406cf8	func	atol	long __cdecl atol(char * s)
 00406d83	func	WinMainCRTStartup
 #
-# --- Data ---
-0040a1ac	data	g_stateSprite	unsigned short[64]	Actor state (0..63) -> sprite/bitmap resource id.
-0040c618	data	g_actorList		Head of the active actor linked list.
-0040c744	data	g_actorFreeList		Head of the free actor list.
-0040c648	data	g_actorPool		LocalAlloc'd 100 x 0x50 actor array.
-0040c5f8	data	g_sprites		LocalAlloc'd 90 x 16-byte sprite table (index = bitmap resource id).
-0040c64c	data	g_player		The player's actor.
-0040c6c8	data	g_hwndMain
-0040c940	data	g_timerProc		= GameTimerProc
+# ===== Data =====
+#
+# --- Tables (.rdata) ---
+0040a1ac	data	g_stateSprite	unsigned short[64]	Actor state -> sprite (bitmap resource id).
+0040a22c	data	g_initialState	ActorState[11]	Starting state for each animated ActorType (SpawnAtEdge).
+0040a258	data	g_turnTable	TurnRow[22]	Player state after pressing left/right, indexed by current state.
+0040a308	data	g_playerMotion	Motion[22]	Player physics per state.
+0040a468	data	g_landingState	ActorState[9]	State on touchdown from PS_JUMP..PS_FLIP_RIGHT. Code indexes it as 0x40a434 + state*4.
+0040a490	data	g_skierMotion	Motion[5]	AT_SKIER physics, states 22-26.
+0040a4e0	data	g_snowboarderMotion	Motion[8]	AT_SNOWBOARDER physics, states 31-38.
+#
+# --- Strings (.data) ---
+0040c080	data	g_iniSection		"Ski"
+0040c0d8	data	g_keySlalom		"SS"
+0040c0f4	data	g_keyFreestyle		"FS"
+0040c0f8	data	g_keyTreeSlalom		"GS" (giant slalom)
+#
+# --- Actors and placements ---
+0040c030	data	g_actorTemplate	Actor	Zeroed actor copied by AllocActor.
+0040c618	data	g_actorList	Actor *	Active actors.
+0040c744	data	g_actorFreeList	Actor *
+0040c648	data	g_actorPool	Actor *	100 actors (LocalAlloc).
+0040c5f8	data	g_sprites	Sprite *	90 sprites, index = bitmap resource id (LocalAlloc).
+0040c72c	data	g_player	Actor *	The skier: keys, mouse, status panel and courses act on this.
+0040c64c	data	g_viewActor	Actor *	The actor the view follows (the skier until the yeti eats it).
+0040c6fc	data	g_onScreenArea		Sum of sprite areas of live actors; spawning stops when it exceeds g_spawnArea / 16..64.
+0040c748	data	g_spawnArea		Area of g_spawnRect.
+0040c758	data	g_placements	Placement *	256 placements (LocalAlloc).
+0040c702	data	g_numPlacements	unsigned short
+0040c630	data	g_slalomCourse	PlacementList
+0040c5e0	data	g_treeSlalomCourse	PlacementList
+0040c658	data	g_freestyleCourse	PlacementList
+0040c738	data	g_liftTowers	PlacementList
+0040c720	data	g_movingObjects	PlacementList	Chairlift chairs and the four yetis.
+#
+# --- Courses and score ---
+0040c95c	data	g_inSlalom
+0040c958	data	g_inTreeSlalom
+0040c954	data	g_inFreestyle
+0040c964	data	g_slalomDone
+0040c960	data	g_treeSlalomDone
+0040c968	data	g_freestyleDone
+0040c94c	data	g_slalomGates	Placement *	First slalom gate.
+0040c950	data	g_treeSlalomGates	Placement *	First tree slalom gate.
+0040c6f8	data	g_nextGate	Placement *
+0040c944	data	g_runTimeMs		Time shown on the status panel.
+0040c948	data	g_runStartTime		Tick count at the start gate (moved back 5000 per missed gate).
+0040c6a8	data	g_stylePoints
+#
+# --- View and layout ---
+0040c6b0	data	g_clientRect	RECT
+0040c680	data	g_spawnRect	RECT	Client rect grown by 120px: actors outside it are culled.
+0040c778	data	g_statusRect	RECT
+0040c640	data	g_viewX	short	World x of the view anchor.
+0040c5f2	data	g_viewY	short	World y of the view anchor.
+0040c5f0	data	g_clientWidth	short
+0040c6d8	data	g_clientHeight	short
+0040c704	data	g_anchorX	short	Screen x where the view actor is drawn.
+0040c5fc	data	g_anchorY	short	Screen y where the view actor is drawn.
+0040c714	data	g_spawnAccumX		Horizontal scroll since the last edge spawn.
+0040c5d8	data	g_spawnAccumY		Vertical scroll since the last edge spawn.
+0040c6a0	data	g_screenWidth	short
+0040c74c	data	g_screenHeight	short
+0040c668	data	g_lineHeight	short	Status panel text line height.
+#
+# --- Timing and state ---
+0040c698	data	g_now	DWORD	GetTickCount() at the current tick.
+0040c708	data	g_prevNow	DWORD
+0040c5f4	data	g_frameMs		Milliseconds since the previous tick.
+0040c5dc	data	g_lastStatusDraw	DWORD
+0040c600	data	g_pauseStart	DWORD
 0040c678	data	g_tickMs		Timer interval, 40ms.
+0040c940	data	g_timerProc		= GameTimerProc
+0040c6d0	data	g_timerRunning
+0040c650	data	g_paused
+0040c67c	data	g_gameActive		Window active and not minimized: ticks and input are processed.
+0040c694	data	g_windowActive
+0040c770	data	g_minimized
+0040c610	data	g_redrawOnInput		Set each tick; input handlers redraw immediately once per tick.
+0040c670	data	g_fastMode		'f' toggles: actors move twice as far per tick.
+0040c760	data	g_mouseSeen
+0040c700	data	g_lastMouseX	short
+0040c70c	data	g_lastMouseY	short
+#
+# --- Windows / GDI ---
+0040c61c	data	g_hInstance	HINSTANCE
+0040c6c8	data	g_hwndMain	HWND
+0040c624	data	g_hwndStatus	HWND
+0040c69c	data	g_hbrBackground		White stock brush.
+0040c63c	data	g_hdcMain	HDC
+0040c6cc	data	g_hdcStatus	HDC
+0040c5ec	data	g_hdcOffscreen	HDC
+0040c690	data	g_offscreenWidth	short
+0040c6e8	data	g_offscreenHeight	short
+0040c710	data	g_hdcStripImage	HDC	Sprites up to 32px wide.
+0040c6a4	data	g_hdcStripMask	HDC
+0040c730	data	g_hdcWideStripImage	HDC	Sprites wider than 32px.
+0040c6ec	data	g_hdcWideStripMask	HDC
+0040c674	data	g_stringCache	char * *
+#
+# --- Sound slots ---
 0040c794	data	g_noSound		Set by the "nosound" command-line switch.
+0040c790	data	g_pfnSndPlaySound
+0040c6c0	data	g_sndCrash	Sound	WAVE 1: hit a tree/rock.
+0040c768	data	g_sndJump	Sound	WAVE 2: bump or ramp.
+0040c5d0	data	g_sndDogHit	Sound	WAVE 3: ran into the dog.
+0040c718	data	g_sndLand	Sound	WAVE 4: landed a jump.
+0040c750	data	g_sndBoarderJump	Sound	WAVE 5: snowboarder jumped.
+0040c628	data	g_sndSkierHit	Sound	WAVE 6: knocked over a skier.
+0040c6e0	data	g_sndYetiEat	Sound	WAVE 7: yeti caught the player.
+0040c608	data	g_sndWoof	Sound	WAVE 8: dog mess.
+0040c6f0	data	g_sndYetiChase	Sound	WAVE 9: yeti chasing.
+#
+# --- Saved GDI objects (restored and deleted in FreeBitmaps / FreeStatusWindow) ---
+0040c614	data	g_hbmOffscreenSaved	HGDIOBJ
+0040c620	data	g_hbmStripImageSaved	HGDIOBJ
+0040c6d4	data	g_hbmStripMaskSaved	HGDIOBJ
+0040c644	data	g_hbmWideStripImageSaved	HGDIOBJ
+0040c75c	data	g_hbmWideStripMaskSaved	HGDIOBJ
+0040c664	data	g_hfontStatusSaved	HGDIOBJ
+0040c78c	data	g_hWinmm	HMODULE	Never loaded in this build.
+#
+# --- Status panel metrics ---
+0040c66a	data	g_statusHeight	short	4 * g_lineHeight.
+0040c66c	data	g_statusWidth	short	Label column + value column.
+0040c66e	data	g_statusLabelWidth	short	x of the value column.
+#
+# --- Format strings (.data) ---
+0040c0dc	data	s_newlines		"\n\n"
+0040c0e0	data	s_fmtString		"%s"
+0040c0e4	data	s_fmtScore		"%9ld"
+0040c0ec	data	s_fmtIniScore		"%ld "
+0040c128	data	s_WAVE		"WAVE"
+0040c788	data	s_empty		""
