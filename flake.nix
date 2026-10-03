@@ -51,6 +51,10 @@
               ps.r2pipe
               ps.pillow
             ]))
+
+            # Native port (src/): SDL2 frontend, built with the stdenv C compiler.
+            SDL2
+            pkg-config
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not
@@ -58,7 +62,7 @@
           # a Homebrew wine build; or skip it and go straight to a native port.
 
           shellHook = ''
-            echo "skifree RE shell: ghidra, ghidra-analyzeHeadless, r2, imhex, llvm-objdump, wrestool, python (pefile/capstone/lief/r2pipe)"
+            echo "skifree shell: make (native port), ghidra, r2, imhex, llvm-objdump, wrestool, python (pefile/capstone/lief/r2pipe/pillow)"
           '';
         };
       });

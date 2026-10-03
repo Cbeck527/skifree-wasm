@@ -109,7 +109,7 @@ Player states: `PS_DOWN` 0, `PS_DOWN_LEFT` 1, `PS_LEFT_DOWN` 2, `PS_LEFT` 3, `PS
 | Up, NumPad 8 | When stopped sideways or sitting: climb uphill (`dy = -4`) | Flip: 13 → 18 → 19 → 13; from 14/15 → 20/21 |
 | Home/End/PgUp/PgDn, NumPad 7/1/9/3 | `PS_LEFT` / `PS_DOWN_LEFT` / `PS_RIGHT` / `PS_DOWN_RIGHT` | — |
 | Insert, NumPad 0 | Hop (`dz = 2`), and `dy -= 4` if fast | — |
-| Mouse move | Steer toward the cursor (`DirStateFromMouse`) | Spin pose by quadrant (`AirStateFromMouse`) |
+| Mouse move | Steer toward the cursor (`DirStateFromMouse`) | Spin pose by quadrant (`AirStateFromMouse`); see the quirk below |
 | Click | Hop (`dz = 4`) | Flip |
 | F2 | Restart | |
 | F3 | Pause / resume | |
@@ -118,7 +118,9 @@ Player states: `PS_DOWN` 0, `PS_DOWN_LEFT` 1, `PS_LEFT_DOWN` 2, `PS_LEFT` 3, `PS
 | `f` | Toggle fast mode (everything moves twice as far per tick) | |
 | `x` `X` `y` `Y` / `r` / `t` | Debug: nudge the player ±2 px / redraw / run one tick | |
 
-Each tick in `UpdateActor`, the walk and climb states (7–10) fall back to standing sideways, so walking is one push per key press. After a crash the skier slides to a stop (`dx`, `dy` decay by 1 per tick), then sits; turning gets up.
+Each tick in `UpdateActor`, the walk and climb states (7–10) fall back to standing sideways, so walking is one push per key press. After a crash the skier stays where it fell while `dx` and `dy` count down by 1 per tick (so a faster crash means a longer wait), then sits; turning gets up.
+
+**Mouse quirk in the air (original behaviour):** `AirStateFromMouse` returns `PS_JUMP_LEFT` when the cursor is below and mostly to the right of the skier, the same as below-left. Confirmed in the disassembly at 0x4066b9.
 
 ### Landing
 
@@ -165,7 +167,7 @@ All three start at y = 640. Each one starts when the player crosses that line in
 
 A gate with sprite 23 (left arrow) must be passed on its left, and 24 (right arrow) on its right. Passed gates turn into sprite 25; missed ones turn into 26 and add 5 seconds. During a run the status panel's Dist counts down to the finish.
 
-`BuildCourses` also places the title signs, 13 lift towers (x = −128, every 2048 from y = −1024 to 23552), the chairs, and four yetis. The Tree Slalom loop also computes a random tree placement each gate but never adds it, though it still consumes two `rand()` values. Keep those calls if you want runs to reproduce exactly.
+`BuildCourses` also places the title signs, 13 lift towers (x = −128, every 2048 from y = −1024 to 23552), the chairs, and four yetis. The Tree Slalom loop also computes a random tree placement each gate but never adds it, though it still consumes three `rand()` values (`PickSpriteForType`'s `Random(8)`, then `Random(32)` and `Random(400)`). Keep those calls if you want runs to reproduce exactly.
 
 ### Chairlift and Yetis
 
@@ -243,7 +245,21 @@ The string table (`GetResString(id)`):
 - **Line ranges are not function boundaries.** Small helpers are inlined. `UpdateActor` (584 bytes) contains asserts from lines 2022–2335 because the player update is inlined into it.
 - Function order mostly follows source order: 30 of the 45 functions are in ascending line order.
 
+## Porting
+
+The native port lives in `src/` (see the top-level README). `src/ski.c` translates the functions in `decompiled-game.c` one by one, keeping their names and their 16-bit arithmetic. The bitmaps, strings and data tables are extracted from `ski32.exe` at build time by `tools/gen_assets.py`, so none of those numbers are typed by hand. Decisions and known differences:
+
+- **Not compared against the running original.** Wine isn't available for Apple Silicon in nixpkgs, so fidelity rests on the line-by-line translation, the data extracted from the binary, and the headless tests (`make test`, `make sanitize`). The MSVC `rand()` sequence is checked at startup.
+- **Tick rate:** 40 ms, as the code asks for. On Windows NT the timer has ~15.6 ms granularity, so most people actually played at ~47 ms per tick (about 15% slower). `skifree --tick-ms 47` reproduces that.
+- **Rendering** is a full redraw each frame instead of dirty rectangles. Erase ghosts are gone; `ActorOrGhost` (used for collision crossings) is reproduced with each actor's `y` at the last draw. Side effect: ghosts no longer take slots in the 100-actor pool, so a very busy screen can hold slightly more actors than the original.
+- **Original bugs kept:** the dead crash-landing penalty, and the mouse quirk in the air.
+- **High scores:** stored in `entpack.ini` in SDL's preference directory for org `ihoc`, app `SkiFree` (override with `SKIFREE_SCORES`), shown in a native message box. The original's message box ran a modal loop that kept the game ticking underneath; the port's blocks, and the game resumes without catching up. The original also built the high-score text in a 256-byte buffer that ten time entries can overflow; the port uses a bounded 512-byte buffer.
+- **Status panel** text uses a small built-in 5x7 font instead of the Windows OEM font.
+- **Keys:** Space is an extra hop key (Macs have no Insert). Keypad keys map to the NumPad codes regardless of Num Lock.
+- **Sound:** `plat_play_sound` is called at every original call site; it does nothing yet.
+
 ## Next steps
 
 - Tidy the remaining raw spots in the decompiled output: `(int)a->type < 0xb` comparisons, and the stack temporary in `BuildCourses` that is really a `Placement`.
-- Port: write the game logic as portable C against a small platform layer (draw sprite, input events, a timer, storage), using `decompiled-game.c` and this file as the spec. Build it for the browser with emscripten, and natively on macOS (for example with SDL) for side-by-side testing.
+- Browser build: an emscripten target for the same SDL frontend (`frame()` is already shaped for `emscripten_set_main_loop`), with `localStorage` for high scores.
+- A macOS `.app` bundle.
