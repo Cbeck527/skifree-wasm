@@ -1,0 +1,174 @@
+address	name	size	region	source	thunk	callers	callees
+00401000	GameTick	96	game	USER_DEFINED		GameTimerProc,OnChar	DrawActors,DrawStatusPanel,GetTickCount,UpdateWorld
+00401060	DrawActors	476	game	USER_DEFINED		FUN_00406100,GameTick,OnChar,OnKeyDown,OnMouseClick	AssertFailed,DrawActor,FUN_004012f0,FUN_00401350,FUN_00401390,FUN_00401a60,GetActorScreenRect,RectsOverlap
+00401240	AssertFailed	47	game	USER_DEFINED		DrawActor,DrawActors,FUN_004012f0,FUN_00401350,FUN_00401390,FUN_004014b0,FUN_00401a60,FUN_00401b20,FUN_00402220,FUN_00402280,FUN_004024f0,FUN_00402850,FUN_00402be0,FUN_00402c60,FUN_00402e30,FUN_00403130,FUN_00403180,FUN_00403250,FUN_00403430,FUN_00404070,FUN_004040a0,FUN_00404130,FUN_004041c0,FUN_00404290,FUN_00404350,FUN_004046e0,FUN_00405100,FUN_00405120,FUN_00406100,FUN_00406c80,GetActorScreenRect,HandleCollision,NewActor,NewActorWithSprite,OnKeyDown,RectsOverlap,SetActorPos,SetActorSprite,SetActorState,UpdateActor,UpdateBurningTree,UpdateDog,UpdateNpcSkier,UpdateSnowboarder,UpdateWalkingTree	FUN_00401270,FUN_00405760,wsprintfA
+00401270	FUN_00401270	30	game	DEFAULT		AssertFailed	DestroyWindow,MessageBoxA
+00401290	RectsOverlap	95	game	USER_DEFINED		DrawActors,FUN_00404130,FUN_00406100,UpdateWorld	AssertFailed
+004012f0	FUN_004012f0	95	game	DEFAULT		DrawActors	AssertFailed
+00401350	FUN_00401350	52	game	DEFAULT		DrawActors,HandleCollision,UpdateWorld	AssertFailed
+00401390	FUN_00401390	117	game	DEFAULT		DrawActors,UpdateWorld	AssertFailed
+00401410	GetActorScreenRect	146	game	USER_DEFINED		DrawActor,DrawActors,FUN_00406100,UpdateWorld	AssertFailed,FUN_004014b0
+004014b0	FUN_004014b0	143	game	DEFAULT		FUN_00404130,GetActorScreenRect	AssertFailed
+00401540	DrawActor	1058	game	USER_DEFINED		DrawActors	AssertFailed,BitBlt,FUN_00401970,GetActorScreenRect,PatBlt
+00401970	FUN_00401970	240	game	DEFAULT		DrawActor	CreateCompatibleBitmap,DeleteObject,SelectObject
+00401a60	FUN_00401a60	180	game	DEFAULT		DrawActors	AssertFailed,FUN_00401b20
+00401b20	FUN_00401b20	96	game	DEFAULT		FUN_00401a60	AssertFailed
+00401b80	DrawStatusPanel	354	game	USER_DEFINED		FUN_00402e80,FUN_00406970,GameTick	DrawStatusText,FormatTime,GetResString,wsprintfA
+00401cf0	GetResString	123	game	USER_DEFINED		DrawStatusPanel,ErrorBox,FUN_00405760,FUN_00406970,FUN_00406a70,FormatTime,HighScoresIni,InitInstance	LoadStringA,LocalAlloc,lstrcpyA
+00401d70	FormatTime	174	game	USER_DEFINED		DrawStatusPanel,HighScoresIni	GetResString,wsprintfA
+00401e20	DrawStatusText	42	game	USER_DEFINED		DrawStatusPanel,FUN_00406970	TextOutA
+00401e50	UpdateWorld	607	game	USER_DEFINED		GameTick	FUN_00401350,FUN_00401390,FUN_00402350,FUN_004040a0,FUN_004046e0,GetActorScreenRect,HandleCollision,NewActor,Random,RectsOverlap,SpawnAtEdge,UpdateActor
+004020b0	Random	23	game	USER_DEFINED		BuildCourses,FUN_004024f0,FUN_004026f0,FUN_004027a0,FUN_004027e0,FUN_00402850,FUN_00404290,FUN_00404350,UpdateDog,UpdateNpcSkier,UpdateSnowboarder,UpdateWalkingTree,UpdateWorld	rand
+004020d0	NewActor	78	game	USER_DEFINED		FUN_00404130,FUN_00404290,NewGame,SpawnAtEdge,UpdateWorld	AssertFailed,FUN_00402330,SetActorState
+00402120	SetActorState	96	game	USER_DEFINED		FUN_00402e80,FUN_004041c0,HandleCollision,NewActor,OnKeyDown,OnMouseClick,OnMouseMove,UpdateActor,UpdateBurningTree,UpdateDog,UpdateNpcSkier,UpdateSnowboarder,UpdateWalkingTree	AssertFailed,SetActorSprite
+00402180	SetActorSprite	152	game	USER_DEFINED		FUN_00403130,HandleCollision,NewActorWithSprite,SetActorState	AssertFailed,FUN_00402220,FUN_00402310
+00402220	FUN_00402220	86	game	DEFAULT		FUN_00402470,FUN_00406060,HandleCollision,SetActorPos,SetActorSprite	AssertFailed,FUN_00402280
+00402280	FUN_00402280	130	game	DEFAULT		FUN_00402220,FUN_00402330	AssertFailed
+00402310	FUN_00402310	21	game	DEFAULT		SetActorSprite	
+00402330	FUN_00402330	22	game	DEFAULT		NewActor,NewActorWithSprite	FUN_00402280
+00402350	FUN_00402350	58	game	DEFAULT		UpdateWorld	FUN_004024f0,SetActorPos
+00402390	SetActorPos	216	game	USER_DEFINED		FUN_00402350,FUN_00402be0,FUN_00404130,FUN_004041c0,FUN_00404290,FUN_004051e0,NewGame,OnChar,SpawnAtEdge,UpdateDog	AssertFailed,FUN_00402220,FUN_00402470
+00402470	FUN_00402470	126	game	DEFAULT		SetActorPos	FUN_00402220
+004024f0	FUN_004024f0	192	game	DEFAULT		FUN_00402350,SpawnAtEdge	AssertFailed,Random
+004025c0	SpawnAtEdge	213	game	USER_DEFINED		UpdateWorld	FUN_004024f0,FUN_004026f0,FUN_00402770,FUN_004027a0,FUN_004027e0,FUN_00402850,NewActor,NewActorWithSprite,SetActorPos
+004026a0	NewActorWithSprite	78	game	USER_DEFINED		FUN_00404130,FUN_004051e0,SpawnAtEdge,UpdateDog	AssertFailed,FUN_00402330,SetActorSprite
+004026f0	FUN_004026f0	122	game	DEFAULT		SpawnAtEdge	Random
+00402770	FUN_00402770	37	game	DEFAULT		SpawnAtEdge	
+004027a0	FUN_004027a0	52	game	DEFAULT		SpawnAtEdge	Random
+004027e0	FUN_004027e0	100	game	DEFAULT		SpawnAtEdge	Random
+00402850	FUN_00402850	118	game	DEFAULT		BuildCourses,SpawnAtEdge	AssertFailed,Random
+004028e0	UpdateActor	584	game	USER_DEFINED		UpdateWorld	AssertFailed,FUN_00402be0,FUN_00402c60,FUN_00403180,FUN_00403250,FUN_00403420,FUN_00403430,PlaySoundSlot,SetActorState,UpdateBurningTree,UpdateDog,UpdateNpcSkier,UpdateSnowboarder,UpdateWalkingTree
+00402ba0	PlaySoundSlot	58	game	USER_DEFINED		FUN_00404350,HandleCollision,UpdateActor,UpdateDog	LockResource
+00402be0	FUN_00402be0	125	game	DEFAULT		UpdateActor,UpdateDog,UpdateNpcSkier,UpdateSnowboarder,UpdateWalkingTree	AssertFailed,SetActorPos
+00402c60	FUN_00402c60	452	game	DEFAULT		UpdateActor	AssertFailed,FUN_00402e30,FUN_00402e80,FUN_00403130,HighScoresIni
+00402e30	FUN_00402e30	66	game	DEFAULT		FUN_00402c60,FUN_00403180,FUN_00403250	AssertFailed
+00402e80	FUN_00402e80	56	game	DEFAULT		FUN_00402c60,FUN_00403180,FUN_00403250	DrawStatusPanel,SetActorState
+00402ec0	HighScoresIni	619	game	USER_DEFINED		FUN_00402c60,FUN_00403180,FUN_00403250	FUN_00406cf8,FormatTime,GetPrivateProfileStringA,GetResString,MessageBoxA,WritePrivateProfileStringA,wsprintfA
+00403130	FUN_00403130	66	game	DEFAULT		FUN_00402c60,FUN_00403250	AssertFailed,SetActorSprite
+00403180	FUN_00403180	207	game	DEFAULT		UpdateActor	AssertFailed,FUN_00402e30,FUN_00402e80,HighScoresIni
+00403250	FUN_00403250	452	game	DEFAULT		UpdateActor	AssertFailed,FUN_00402e30,FUN_00402e80,FUN_00403130,HighScoresIni
+00403420	FUN_00403420	16	game	DEFAULT		HandleCollision,UpdateActor	
+00403430	FUN_00403430	259	game	DEFAULT		UpdateActor,UpdateNpcSkier,UpdateSnowboarder	AssertFailed
+00403540	UpdateNpcSkier	201	game	USER_DEFINED		UpdateActor	AssertFailed,FUN_00402be0,FUN_00403430,Random,SetActorState
+00403610	UpdateDog	289	game	USER_DEFINED		UpdateActor	AssertFailed,FUN_00402be0,NewActorWithSprite,PlaySoundSlot,Random,SetActorPos,SetActorState
+00403750	UpdateBurningTree	92	game	USER_DEFINED		UpdateActor	AssertFailed,SetActorState
+004037b0	UpdateWalkingTree	331	game	USER_DEFINED		UpdateActor	AssertFailed,FUN_00402be0,Random,SetActorState
+00403910	UpdateSnowboarder	231	game	USER_DEFINED		UpdateActor	AssertFailed,FUN_00402be0,FUN_00403430,Random,SetActorState
+00403a00	HandleCollision	1492	game	USER_DEFINED		UpdateWorld	AssertFailed,FUN_00401350,FUN_00402220,FUN_00403420,FUN_00404070,PlaySoundSlot,SetActorSprite,SetActorState
+00404070	FUN_00404070	33	game	DEFAULT		HandleCollision	AssertFailed
+004040a0	FUN_004040a0	129	game	DEFAULT		UpdateWorld	AssertFailed,FUN_00404130,FUN_004041c0
+00404130	FUN_00404130	138	game	DEFAULT		FUN_004040a0,FUN_004046e0	AssertFailed,FUN_004014b0,NewActor,NewActorWithSprite,RectsOverlap,SetActorPos
+004041c0	FUN_004041c0	194	game	DEFAULT		FUN_004040a0	AssertFailed,FUN_00404290,FUN_00404350,SetActorPos,SetActorState
+00404290	FUN_00404290	177	game	DEFAULT		FUN_004041c0	AssertFailed,NewActor,Random,SetActorPos
+00404350	FUN_00404350	883	game	DEFAULT		FUN_004041c0	AssertFailed,PlaySoundSlot,Random
+004046e0	FUN_004046e0	222	game	DEFAULT		UpdateWorld	AssertFailed,FUN_00404130
+004047c0	GameTimerProc	22	game	USER_DEFINED			GameTick
+004047e0	WinMain	213	game	USER_DEFINED		WinMainCRTStartup	AllocGlobals,DestroyWindow,DispatchMessageA,FreeSounds,GetMessageA,InitGameState,InitInstance,NewGame,TranslateMessage,lstrcmpiA
+004048c0	AllocGlobals	138	game	USER_DEFINED		WinMain	ErrorBox,LocalAlloc
+00404950	ErrorBox	27	game	USER_DEFINED		AllocGlobals,LoadBitmaps	GetResString,MessageBoxA
+00404970	InitGameState	143	game	USER_DEFINED		FUN_00406500,WinMain	FUN_00404a70,GetTickCount,InitActorPool,srand
+00404a00	InitActorPool	100	game	USER_DEFINED		InitGameState	
+00404a70	FUN_00404a70	10	game	DEFAULT		InitGameState	
+00404a80	NewGame	71	game	USER_DEFINED		FUN_00406500,WinMain	BuildCourses,FUN_004051e0,NewActor,SetActorPos,StartGameTimer
+00404ad0	StartGameTimer	128	game	USER_DEFINED		FUN_00405760,FUN_00405a10,NewGame	GetTickCount,SetTimer
+00404b50	BuildCourses	1448	game	USER_DEFINED		NewGame	FUN_00402850,FUN_00405100,FUN_00405120,Random
+00405100	FUN_00405100	30	game	DEFAULT		BuildCourses	AssertFailed
+00405120	FUN_00405120	187	game	DEFAULT		BuildCourses	AssertFailed
+004051e0	FUN_004051e0	226	game	DEFAULT		NewGame	NewActorWithSprite,SetActorPos
+004052d0	InitInstance	842	game	USER_DEFINED		WinMain	CreateWindowExA,DestroyWindow,FindWindowA,GetDC,GetDeviceCaps,GetResString,GetStockObject,InitSound,IsIconic,LoadCursorA,LoadIconA,LoadWaveResource,OpenIcon,RegisterClassA,ReleaseDC,SetWindowPos,ShowWindow,UpdateWindow
+00405620	InitSound	20	game	USER_DEFINED		InitInstance	
+00405640	LoadWaveResource	83	game	USER_DEFINED		InitInstance	FindResourceA,LoadResource,LockResource
+004056a0	FreeSounds	131	game	USER_DEFINED		WinMain	FreeLibrary,FreeWaveResource
+00405730	FreeWaveResource	38	game	USER_DEFINED		FreeSounds	FreeResource
+00405760	FUN_00405760	89	game	DEFAULT		AssertFailed,FUN_00406500,OnKeyDown	FUN_004057c0,GetResString,InvalidateRect,SetWindowTextA,StartGameTimer
+004057c0	FUN_004057c0	52	game	DEFAULT		FUN_00405760,FUN_00405a10,FreeBitmaps	KillTimer
+00405800	MainWndProc	451	game	USER_DEFINED			DefWindowProcA,FUN_00405a10,FUN_00405fa0,FUN_00406890,FreeBitmaps,LoadBitmaps,OnChar,OnKeyDown,OnMouseClick,OnMouseMove,OnPaint,PostQuitMessage,SetFocus,UpdateWindow
+00405a10	FUN_00405a10	48	game	DEFAULT		MainWndProc	FUN_004057c0,StartGameTimer
+00405a40	LoadBitmaps	111	game	USER_DEFINED		MainWndProc	ErrorBox,FUN_00405ab0,GetDC
+00405ab0	FUN_00405ab0	996	game	DEFAULT		LoadBitmaps	BitBlt,CreateBitmap,CreateCompatibleBitmap,CreateCompatibleDC,DeleteObject,FUN_00405ea0,GetObjectA,SelectObject
+00405ea0	FUN_00405ea0	20	game	DEFAULT		FUN_00405ab0	LoadBitmapA
+00405ec0	FreeBitmaps	214	game	USER_DEFINED		MainWndProc	DeleteDC,DeleteObject,FUN_004057c0,ReleaseDC,SelectObject
+00405fa0	FUN_00405fa0	179	game	DEFAULT		MainWndProc	FUN_00406060,GetClientRect
+00406060	FUN_00406060	73	game	DEFAULT		FUN_00405fa0	FUN_00402220
+004060b0	OnPaint	71	game	USER_DEFINED		MainWndProc	BeginPaint,EndPaint,FUN_00406100,FillRect
+00406100	FUN_00406100	112	game	DEFAULT		OnPaint	AssertFailed,DrawActors,GetActorScreenRect,RectsOverlap
+00406170	OnKeyDown	565	game	USER_DEFINED		MainWndProc	AssertFailed,DrawActors,FUN_00405760,FUN_00406500,SetActorState,ShowWindow
+00406500	FUN_00406500	76	game	DEFAULT		OnKeyDown,OnMouseClick	DestroyWindow,FUN_00405760,InitGameState,InvalidateRect,NewGame,UpdateWindow
+00406550	OnMouseMove	136	game	USER_DEFINED		MainWndProc	FUN_004065e0,FUN_00406670,SetActorState
+004065e0	FUN_004065e0	132	game	DEFAULT		OnMouseMove	
+00406670	FUN_00406670	85	game	DEFAULT		OnMouseMove	
+004066d0	OnMouseClick	148	game	USER_DEFINED		MainWndProc	DrawActors,FUN_00406500,SetActorState
+00406780	OnChar	203	game	USER_DEFINED		MainWndProc	DrawActors,GameTick,SetActorPos
+00406890	FUN_00406890	58	game	DEFAULT		MainWndProc	MoveWindow
+004068d0	StatusWndProc	119	game	USER_DEFINED			DefWindowProcA,FUN_00406970,FUN_00406a70,FUN_00406c80,GetClientRect
+00406970	FUN_00406970	253	game	DEFAULT		StatusWndProc	BeginPaint,DrawStatusPanel,DrawStatusText,EndPaint,FrameRect,GetResString,GetStockObject,lstrlenA
+00406a70	FUN_00406a70	480	game	DEFAULT		StatusWndProc	FUN_00406c50,GetDC,GetResString,GetStockObject,GetTextMetricsA,SelectObject,lstrlenA
+00406c50	FUN_00406c50	47	game	DEFAULT		FUN_00406a70	GetTextExtentPoint32A
+00406c80	FUN_00406c80	65	game	DEFAULT		StatusWndProc	AssertFailed,ReleaseDC,SelectObject
+00406cd0	srand	10	crt	USER_DEFINED		InitGameState	
+00406cda	rand	30	crt	USER_DEFINED		Random	
+00406cf8	FUN_00406cf8	139	crt	DEFAULT		HighScoresIni	FUN_00406ec2
+00406d83	WinMainCRTStartup	235	crt	USER_DEFINED			FUN_00406e9e,FUN_00406f74,FUN_00406fa1,FUN_00407076,FUN_004071fa,FUN_00407252,FUN_0040730b,FUN_00407558,FUN_0040768a,FUN_00407835,GetCommandLineA,GetModuleHandleA,GetStartupInfoA,GetVersion,WinMain
+00406e6e	FUN_00406e6e	11	crt	DEFAULT			__exit
+00406e79	FUN_00406e79	34	crt	DEFAULT		FUN_00407252,FUN_0040730b,FUN_0040768a	FUN_00407a44,FUN_00407a7d,__exit
+00406e9b	FUN_00406e9b	3	crt	DEFAULT			
+00406e9e	FUN_00406e9e	35	crt	DEFAULT		WinMainCRTStartup	ExitProcess,FUN_00407a44,FUN_00407a7d
+00406ec1	FUN_00406ec1	1	crt	DEFAULT			
+00406ec2	FUN_00406ec2	117	crt	DEFAULT		FUN_00406cf8	FUN_00407bd0
+00406f40	FUN_00406f40	52	crt	DEFAULT			
+00406f74	FUN_00406f74	45	crt	DEFAULT		WinMainCRTStartup	FUN_0040705c
+00406fa1	FUN_00406fa1	17	crt	DEFAULT		WinMainCRTStartup	FUN_00406fc3
+00406fb2	__exit	17	crt	ANALYSIS		FUN_00406e6e,FUN_00406e79	FUN_00406fc3
+00406fc3	FUN_00406fc3	153	crt	DEFAULT		FUN_00406fa1,__exit	ExitProcess,FUN_0040705c,GetCurrentProcess,TerminateProcess
+0040705c	FUN_0040705c	26	crt	DEFAULT		FUN_00406f74,FUN_00406fc3	
+00407076	FUN_00407076	321	crt	DEFAULT		WinMainCRTStartup	FUN_004071b7,UnhandledExceptionFilter
+004071b7	FUN_004071b7	67	crt	DEFAULT		FUN_00407076	
+004071fa	FUN_004071fa	88	crt	DEFAULT		WinMainCRTStartup	FUN_00407d19,FUN_0040811f
+00407252	FUN_00407252	185	crt	DEFAULT		WinMainCRTStartup	FUN_00406e79,FUN_0040811f,FUN_0040813b,FUN_00408170,_malloc,_strlen
+0040730b	FUN_0040730b	153	crt	DEFAULT		WinMainCRTStartup	FUN_00406e79,FUN_004073a4,FUN_0040811f,GetModuleFileNameA,_malloc
+004073a4	FUN_004073a4	436	crt	DEFAULT		FUN_0040730b	
+00407558	FUN_00407558	306	crt	DEFAULT		WinMainCRTStartup	FUN_0040813b,FUN_00408360,FreeEnvironmentStringsA,FreeEnvironmentStringsW,GetEnvironmentStrings,GetEnvironmentStringsW,WideCharToMultiByte,_malloc
+0040768a	FUN_0040768a	427	crt	DEFAULT		WinMainCRTStartup	FUN_00406e79,GetFileType,GetStartupInfoA,GetStdHandle,SetHandleCount,_malloc
+00407835	FUN_00407835	60	crt	DEFAULT		WinMainCRTStartup	FUN_00408695,HeapCreate,HeapDestroy
+00407874	__global_unwind2	32	crt	ANALYSIS		FUN_00407964	RtlUnwind
+00407894	FUN_00407894	34	crt	DEFAULT			
+004078b6	__local_unwind2	104	crt	ANALYSIS		FUN_00407964,FUN_00407a29	FUN_0040794a
+0040791e	FUN_0040791e	35	crt	DEFAULT			
+00407941	FUN_00407941	9	crt	DEFAULT			
+0040794a	FUN_0040794a	24	crt	DEFAULT		FUN_00407964,__local_unwind2	
+00407964	FUN_00407964	197	crt	DEFAULT			FUN_0040794a,__global_unwind2,__local_unwind2
+00407a29	FUN_00407a29	27	crt	DEFAULT			__local_unwind2
+00407a44	FUN_00407a44	57	crt	DEFAULT		FUN_00406e79,FUN_00406e9e	FUN_00407a7d
+00407a7d	FUN_00407a7d	339	crt	DEFAULT		FUN_00406e79,FUN_00406e9e,FUN_00407a44	FUN_00408170,FUN_00408180,FUN_00408ede,GetModuleFileNameA,GetStdHandle,WriteFile,_strlen,_strncpy
+00407bd0	FUN_00407bd0	318	crt	DEFAULT		FUN_00406ec2,FUN_00407f9a	FUN_004090d0,GetStringTypeA,GetStringTypeW,MultiByteToWideChar,_memset
+00407d19	FUN_00407d19	17	crt	DEFAULT		FUN_004071fa	FUN_00407d2a
+00407d2a	FUN_00407d2a	49	crt	DEFAULT		FUN_00407d19	
+00407d5b	FUN_00407d5b	409	crt	DEFAULT		FUN_0040811f	FUN_00407ef4,FUN_00407f3e,FUN_00407f71,FUN_00407f9a,GetCPInfo
+00407ef4	FUN_00407ef4	74	crt	DEFAULT		FUN_00407d5b	
+00407f3e	FUN_00407f3e	51	crt	DEFAULT		FUN_00407d5b	
+00407f71	FUN_00407f71	41	crt	DEFAULT		FUN_00407d5b	
+00407f9a	FUN_00407f9a	389	crt	DEFAULT		FUN_00407d5b	FUN_00407bd0,FUN_004090ff,GetCPInfo
+0040811f	FUN_0040811f	28	crt	DEFAULT		FUN_004071fa,FUN_00407252,FUN_0040730b	FUN_00407d5b
+0040813b	FUN_0040813b	47	crt	DEFAULT		FUN_00407252,FUN_00407558	FUN_004086d3,FUN_004086fe,HeapFree
+00408170	FUN_00408170	7	crt	DEFAULT		FUN_00407252,FUN_00407a7d	
+00408180	FUN_00408180	224	crt	DEFAULT		FUN_00407a7d	
+00408260	_malloc	18	crt	ANALYSIS		FUN_00407252,FUN_0040730b,FUN_00407558,FUN_0040768a	__nh_malloc
+00408272	__nh_malloc	44	crt	ANALYSIS		_malloc	FUN_0040829e,FUN_0040934e
+0040829e	FUN_0040829e	54	crt	DEFAULT		__nh_malloc	FUN_00408a29,HeapAlloc
+004082e0	_strlen	123	crt	ANALYSIS		FUN_00407252,FUN_00407a7d	
+00408360	FUN_00408360	664	crt	DEFAULT		FUN_00407558	
+00408695	FUN_00408695	62	crt	DEFAULT		FUN_00407835	HeapAlloc
+004086d3	FUN_004086d3	43	crt	DEFAULT		FUN_0040813b	
+004086fe	FUN_004086fe	811	crt	DEFAULT		FUN_0040813b	FUN_00409370,HeapFree,VirtualFree
+00408a29	FUN_00408a29	777	crt	DEFAULT		FUN_0040829e	FUN_00408d32,FUN_00408de3
+00408d32	FUN_00408d32	177	crt	DEFAULT		FUN_00408a29	HeapAlloc,HeapFree,HeapReAlloc,VirtualAlloc
+00408de3	FUN_00408de3	251	crt	DEFAULT		FUN_00408a29	VirtualAlloc
+00408ede	FUN_00408ede	137	crt	DEFAULT		FUN_00407a7d	GetProcAddress,LoadLibraryA
+00408f70	_strncpy	254	crt	ANALYSIS		FUN_00407a7d	
+00409070	_memset	88	crt	ANALYSIS		FUN_00407bd0	
+004090d0	FUN_004090d0	47	crt	DEFAULT		FUN_00407bd0,FUN_004090ff	
+004090ff	FUN_004090ff	511	crt	DEFAULT		FUN_00407f9a	FUN_004090d0,FUN_00409323,LCMapStringA,LCMapStringW,MultiByteToWideChar,WideCharToMultiByte
+00409323	FUN_00409323	43	crt	DEFAULT		FUN_004090ff	
+0040934e	FUN_0040934e	27	crt	DEFAULT		__nh_malloc	
+00409370	FUN_00409370	664	crt	DEFAULT		FUN_004086fe	
+004096a6	RtlUnwind	6	crt	DEFAULT	thunk	__global_unwind2	

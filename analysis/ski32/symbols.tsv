@@ -1,0 +1,86 @@
+# Hand-maintained symbols for ski32.exe, applied by scripts/ghidra/ApplySymbols.java.
+# address	kind	name	signature	comment
+#
+# Game code is compiled __fastcall by default (first two args in ECX/EDX), so any
+# signature given here for a game function must say __fastcall unless it's a
+# Windows callback (WinMain/WndProc/TimerProc are __stdcall).
+# Leave the signature column empty to keep Ghidra's inferred prototype.
+#
+# --- Game code (0x401000-0x406cc1, compiled from ski2.c) ---
+#
+# Main loop / timing
+004047e0	func	WinMain	int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char * lpCmdLine, int nCmdShow)	Called from entry (CRT WinMainCRTStartup). "nosound" on the command line disables sound.
+004048c0	func	AllocGlobals			LocalAlloc string cache (0x50), sprite table (0x5a0 = 90 x 16), actor pool (8000 = 100 x 0x50), 0x2400 buffer.
+00404970	func	InitGameState			srand(GetTickCount()), builds actor free list, zeroes game globals, tick interval = 40ms.
+00404a00	func	InitActorPool			Links the 100 x 0x50-byte actors into a free list.
+00404a80	func	NewGame			Creates the player actor (type 0, state 3), builds courses, starts the timer.
+00404ad0	func	StartGameTimer			SetTimer(hwndMain, 666, 40ms, GameTimerProc).
+004047c0	func	GameTimerProc	void __stdcall GameTimerProc(HWND hwnd, UINT msg, UINT idEvent, DWORD dwTime)	TIMERPROC installed by StartGameTimer; runs GameTick while the game is active.
+00401000	func	GameTick			One frame: measure dt, UpdateWorld, DrawActors, refresh status panel every ~327ms.
+00401e50	func	UpdateWorld			Per frame: UpdateActor for each actor, cull off-screen actors, pairwise collisions, spawn scenery at edges every 60px scrolled.
+#
+# Actors (100-entry pool of 0x50-byte structs; see NOTES.md for field offsets)
+004020b0	func	Random	short __fastcall Random(short n)	rand() % n
+004020d0	func	NewActor			NewActor(type, state)
+004026a0	func	NewActorWithSprite			NewActorWithSprite(type, spriteId): constructor for static actors.
+00402120	func	SetActorState			Sets actor->state (+0x1c) and its sprite via the state->sprite table at 0x40a1ac.
+00402180	func	SetActorSprite
+00402390	func	SetActorPos			SetActorPos(actor, x, y, z); scrolls the view when the actor is the player.
+00401410	func	GetActorScreenRect			Computes (and caches at +0x20) the actor's bounding rect; sets flag 4.
+00401290	func	RectsOverlap	int __fastcall RectsOverlap(RECT * a, RECT * b)
+004025c0	func	SpawnAtEdge			SpawnAtEdge(dir): dir 0..3 = which screen edge to populate with new scenery.
+004028e0	func	UpdateActor			Dispatch on actor->type (+0x18). Type 0 (player) is handled inline: pose state machine with physics table at 0x40a308.
+00403540	func	UpdateNpcSkier			type 1, states 0x16-0x1a, sprites 28-32
+00403610	func	UpdateDog			type 2, states 0x1b-0x1e, sprites 33-36 (plays sound slot 8, "woof")
+00403910	func	UpdateSnowboarder			type 3, states 0x1f-0x26, sprites 37-44
+00403750	func	UpdateBurningTree			type 9, states 0x38-0x3b, sprites 83/84/85/84 loop
+004037b0	func	UpdateWalkingTree			type 10, states 0x3c-0x3f, sprites 49, 87-89
+00403a00	func	HandleCollision			HandleCollision(a, b), called for each overlapping pair from UpdateWorld.
+00404b50	func	BuildCourses			Lays out the Slalom / Tree Slalom / Freestyle courses (signs = sprites 61/62/63, start 57/58, finish 59/60).
+#
+# Drawing
+00401060	func	DrawActors			Redraws actors whose rects changed or intersect the dirty rect.
+00401540	func	DrawActor			BitBlt/PatBlt one actor.
+00401b80	func	DrawStatusPanel			Time / Dist / Speed / Style readout in the SkiStatus window.
+00401d70	func	FormatTime			ms -> "h:mm:ss.cc" (string table id 11).
+00401e20	func	DrawStatusText			TextOutA wrapper.
+#
+# Window / resources
+004052d0	func	InitInstance			RegisterClassA "SkiMain" (MainWndProc) and "SkiStatus" (StatusWndProc), CreateWindowExA, loads sounds.
+00405800	func	MainWndProc	LRESULT __stdcall MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)	Registered as lpfnWndProc in RegisterClassA; only reached via pointer.
+004068d0	func	StatusWndProc	LRESULT __stdcall StatusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)	Window procedure for the "SkiStatus" child window.
+00405a40	func	LoadBitmaps			WM_CREATE. "Whoa, like, can't load bitmaps!" on failure.
+00405ec0	func	FreeBitmaps			WM_DESTROY.
+004060b0	func	OnPaint			WM_PAINT for the main window.
+00406170	func	OnKeyDown			WM_KEYDOWN (arrows / numpad / F2 restart / F3 pause).
+00406780	func	OnChar			WM_CHAR.
+00406550	func	OnMouseMove			WM_MOUSEMOVE: steer toward the cursor.
+004066d0	func	OnMouseClick			WM_LBUTTONDOWN / WM_LBUTTONDBLCLK.
+00401cf0	func	GetResString			LoadStringA with a per-id cache.
+00401240	func	AssertFailed	void __fastcall AssertFailed(char * file, unsigned int line)	MessageBox "Assertion Failed" / "%s line %u".
+00404950	func	ErrorBox			MessageBoxA with the "SkiFree" caption.
+00402ec0	func	HighScoresIni			Reads/writes high scores under [Ski] in entpack.ini.
+#
+# Sound (dead in this build: no WAVE resources in ski32.exe)
+00405620	func	InitSound			Stores the sndPlaySoundA pointer.
+00405640	func	LoadWaveResource			FindResource(id, "WAVE"); always fails in ski32.exe.
+004056a0	func	FreeSounds
+00405730	func	FreeWaveResource
+00402ba0	func	PlaySoundSlot			sndPlaySound(ptr, SND_ASYNC|SND_MEMORY) if the slot loaded; never true here.
+#
+# --- Statically linked MSVC 6 C runtime (0x406cd0-end) ---
+00406cd0	func	srand	void __cdecl srand(unsigned int seed)
+00406cda	func	rand	int __cdecl rand(void)	MS LCG: seed = seed*0x343fd + 0x269ec3; return (seed>>16)&0x7fff
+00406d83	func	WinMainCRTStartup
+#
+# --- Data ---
+0040a1ac	data	g_stateSprite	unsigned short[64]	Actor state (0..63) -> sprite/bitmap resource id.
+0040c618	data	g_actorList		Head of the active actor linked list.
+0040c744	data	g_actorFreeList		Head of the free actor list.
+0040c648	data	g_actorPool		LocalAlloc'd 100 x 0x50 actor array.
+0040c5f8	data	g_sprites		LocalAlloc'd 90 x 16-byte sprite table (index = bitmap resource id).
+0040c64c	data	g_player		The player's actor.
+0040c6c8	data	g_hwndMain
+0040c940	data	g_timerProc		= GameTimerProc
+0040c678	data	g_tickMs		Timer interval, 40ms.
+0040c794	data	g_noSound		Set by the "nosound" command-line switch.
