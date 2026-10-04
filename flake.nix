@@ -1,5 +1,5 @@
 {
-  description = "SkiFree reverse-engineering workspace (decompile ski32.exe, later port to WASM)";
+  description = "SkiFree reverse-engineering workspace (decompile ski32.exe, port to native and WASM)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -55,6 +55,11 @@
             # Native port (src/): SDL2 frontend, built with the stdenv C compiler.
             SDL2
             pkg-config
+
+            # Browser build (make web): emcc, plus node to run the core's
+            # tests compiled to wasm.
+            emscripten
+            nodejs
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not

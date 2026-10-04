@@ -7,8 +7,15 @@
  *
  * Headless mode (see headless.c) renders the final frame with SDL's software
  * renderer, so it needs no display.
+ *
+ * The same file builds for the browser with emscripten (make web): there the
+ * window is the page's canvas, the browser drives frame(), and high scores
+ * go to localStorage.
  */
 #include <SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +34,6 @@ static int g_headless;
 static uint32_t g_lastTimer;
 static int g_tickMs = SKI_TICK_MS;
 static int g_vsync;
-static char g_scoresPath[1024];
 
 /* ---- platform.h --------------------------------------------------------- */
 
@@ -39,6 +45,7 @@ void plat_set_title(const char *title)
         SDL_SetWindowTitle(g_window, title);
 }
 
+/* A no-op in the browser: a page can't minimize itself. */
 void plat_minimize(void)
 {
     if (g_window)
@@ -46,6 +53,36 @@ void plat_minimize(void)
 }
 
 void plat_play_sound(int slot) { (void)slot; }
+
+#ifdef __EMSCRIPTEN__
+
+/* In the browser, each key is a localStorage item ("SkiFree.SS" and so on).
+ * Values are also kept in memory, so scores last for the visit when storage
+ * is blocked (private windows, disabled site data). */
+EM_JS(void, web_load_scores, (const char *key, char *buf, int size), {
+    var k = "SkiFree." + UTF8ToString(key);
+    var v = (Module.skiScores || {})[k];
+    if (v == null) {
+        try { v = localStorage.getItem(k); } catch (e) {}
+    }
+    stringToUTF8(v || "", buf, size);
+});
+
+EM_JS(void, web_save_scores, (const char *key, const char *value), {
+    var k = "SkiFree." + UTF8ToString(key), v = UTF8ToString(value);
+    (Module.skiScores = Module.skiScores || {})[k] = v;
+    try { localStorage.setItem(k, v); } catch (e) {}
+});
+
+static void scores_path_init(void) {}
+
+void plat_load_scores(const char *key, char *buf, int size) { web_load_scores(key, buf, size); }
+
+void plat_save_scores(const char *key, const char *value) { web_save_scores(key, value); }
+
+#else
+
+static char g_scoresPath[1024];
 
 /* Scores live in entpack.ini under the SDL pref path, as "[Ski]" and
  * "KEY=value" lines, like the original's file. */
@@ -107,6 +144,10 @@ void plat_save_scores(const char *key, const char *value)
     fclose(f);
 }
 
+#endif
+
+/* In the browser, SDL shows this with alert(), which blocks like the
+ * original's MessageBox. */
 void plat_show_scores(const char *title, const char *text)
 {
     if (g_headless) {
@@ -321,8 +362,10 @@ static void frame(void)
     render(w, h);
     snapshot_if_requested(ow, oh);
     SDL_RenderPresent(g_renderer);
+#ifndef __EMSCRIPTEN__ /* the browser paces frames itself */
     if (!g_vsync)
         SDL_Delay(1); /* no vsync to pace us */
+#endif
 }
 
 /* ---- Headless ----------------------------------------------------------- */
@@ -387,7 +430,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "skifree: %s\n", SDL_GetError());
         return 1;
     }
+#ifndef __EMSCRIPTEN__ /* the page's CSS sizes the canvas; ski_resize clamps */
     SDL_SetWindowMinimumSize(g_window, SKI_MIN_WIDTH, SKI_MIN_HEIGHT);
+#endif
     SDL_StartTextInput(); /* WM_CHAR keys ('f', debug keys); off by default under SDL3 */
     g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (g_renderer) {
@@ -404,8 +449,13 @@ int main(int argc, char **argv)
     if (!ski_init(ww, wh))
         return 1;
     g_lastTimer = SDL_GetTicks();
+#ifdef __EMSCRIPTEN__
+    /* The browser calls frame() before each repaint. This doesn't return. */
+    emscripten_set_main_loop(frame, 0, 1);
+#else
     while (g_running)
         frame();
+#endif
     SDL_Quit();
     return 0;
 }

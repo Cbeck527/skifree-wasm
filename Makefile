@@ -3,6 +3,8 @@
 #   make            build build/port/skifree (and the SDL-free build/port/skifree-sim)
 #   make run        build and play
 #   make test       headless checks (self-test, determinism, scenarios, screenshots)
+#   make web        browser build in build/web (emscripten); make serve to play it
+#   make web-test   check the core compiled to wasm plays the same games as native
 
 CC ?= cc
 CFLAGS ?= -O2 -g -Wall -Wextra -std=c99
@@ -60,7 +62,39 @@ sanitize: $(OUT)/assets.c
 	$(SAN_ENV) tests/fuzz.sh $(SAN)/skifree-sim 42
 	$(SAN_ENV) tests/fuzz.sh $(SAN)/skifree-sim 7
 
-clean:
-	rm -rf $(OUT) $(SAN)
+# Browser build: build/web/index.html, index.js and index.wasm, the whole
+# deployable site. emscripten fetches and builds its SDL2 port into its cache
+# on first use. Browsers won't load .wasm from file://, hence `make serve`.
+WEB := build/web
+EMCC := emcc
+WEB_CFLAGS := -O2 -Wall -Wextra -std=c99
+WEB_SRC := src/ski.c src/headless.c src/main_sdl.c $(OUT)/assets.c
+CORE_H := src/ski.h src/assets.h src/platform.h src/headless.h
 
-.PHONY: all run test sanitize clean
+web: $(WEB)/index.html
+
+$(WEB)/index.html: $(WEB_SRC) $(CORE_H) src/font5x7.h web/shell.html
+	mkdir -p $(WEB)
+	$(EMCC) $(WEB_CFLAGS) -sUSE_SDL=2 -sENVIRONMENT=web -Isrc $(WEB_SRC) \
+		--shell-file web/shell.html -o $@
+
+serve: web
+	python3 -m http.server -d $(WEB) 8000
+
+# The SDL-free core compiled to wasm, run under node by a wrapper script so
+# it takes the same command lines as the native skifree-sim.
+WEBSIM := build/web-sim
+$(WEBSIM)/skifree-sim: src/ski.c src/headless.c tests/sim.c $(OUT)/assets.c $(CORE_H)
+	mkdir -p $(WEBSIM)
+	$(EMCC) $(WEB_CFLAGS) -sENVIRONMENT=node -sEXIT_RUNTIME=1 -Isrc \
+		src/ski.c src/headless.c tests/sim.c $(OUT)/assets.c -o $@.js
+	printf '#!/bin/sh\nexec node "$$(dirname "$$0")/skifree-sim.js" "$$@"\n' > $@
+	chmod +x $@
+
+web-test: $(OUT)/skifree-sim $(WEBSIM)/skifree-sim
+	tests/web.sh $(OUT)/skifree-sim $(WEBSIM)/skifree-sim
+
+clean:
+	rm -rf $(OUT) $(SAN) $(WEB) $(WEBSIM)
+
+.PHONY: all run test sanitize web serve web-test clean

@@ -1,6 +1,6 @@
 # skifree-wasm
 
-A reverse-engineered, portable C port of **SkiFree** (Chris Pirih, 1991), built from the Win32 binaries published at https://ski.ihoc.net/. It runs natively on macOS today, and is structured so the same code can be built for the browser with emscripten.
+A reverse-engineered, portable C port of **SkiFree** (Chris Pirih, 1991), built from the Win32 binaries published at https://ski.ihoc.net/. It runs natively on macOS and in the browser (WebAssembly, built with emscripten).
 
 ## Quick start
 
@@ -8,6 +8,7 @@ A reverse-engineered, portable C port of **SkiFree** (Chris Pirih, 1991), built 
 nix develop        # or: direnv allow
 make run           # build and play
 make test          # headless checks
+make serve         # browser build; play at http://localhost:8000
 ```
 
 ## Playing
@@ -31,6 +32,17 @@ The three courses start below the signs at the top: Slalom (left), Freestyle (mi
 
 Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N` (40 by default; 47 matches how the original ran on Windows NT).
 
+## In the browser
+
+`make web` builds the whole site into `build/web/` (`index.html`, `index.js`, `index.wasm`: about 900 KB, 250 KB gzipped); copy those three files to any static host to publish it. `make serve` builds and serves it locally, since browsers won't load `.wasm` from a `file://` page.
+
+It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first build downloads and compiles emscripten's SDL2 port into its cache, which under Nix is in `/tmp`, so it happens again (with network needed) after a reboot. The differences:
+
+- The game fills the browser window and follows it when resized, at full resolution on high-DPI screens. The page is `web/shell.html`.
+- High scores are kept in the browser's `localStorage` (`SkiFree.SS`, `SkiFree.GS`, `SkiFree.FS`) and shown with `alert()`.
+- Esc does nothing (a page can't minimize itself). Switching tabs or windows pauses the game, like losing focus on the desktop.
+- Browser shortcuts (Ctrl/Cmd/Alt combinations, F5, F11 for full screen) keep working; the game only takes F2 and F3.
+
 ## Layout
 
 | Path | What |
@@ -40,7 +52,8 @@ Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N`
 | `scripts/` | The decompilation pipeline (`decompile.sh` + Ghidra scripts) and helpers |
 | `src/ski.c` | The game core: a function-by-function port of the decompiled code |
 | `src/platform.h` | What the core needs from a frontend (clock, title, storage, message box) |
-| `src/main_sdl.c` | SDL2 frontend: window, input, rendering, high scores |
+| `src/main_sdl.c` | SDL2 frontend: window, input, rendering, high scores; also the browser frontend |
+| `web/shell.html` | The page around the browser build |
 | `src/headless.c`, `tests/` | Headless runner (scripted input, simulated clock), test suite, fuzzer |
 | `tools/gen_assets.py` | Extracts bitmaps, strings and data tables from `ski32.exe` into C at build time |
 
@@ -52,6 +65,9 @@ Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N`
 | `make run` | Build and play |
 | `make test` | Determinism with a golden hash, the Yeti at 2000 m, all three courses finished, screenshots |
 | `make sanitize` | 2 × 30,000 ticks of random play under ASan + UBSan |
+| `make web` | Browser build in `build/web/` |
+| `make serve` | Browser build, served at http://localhost:8000 |
+| `make web-test` | The core compiled to wasm and run under node must play the same games as native: traces, high-score lists and state hashes, including 2 × 30,000 ticks of random play |
 | `scripts/decompile.sh` | Re-run Ghidra and regenerate `analysis/ski32/` from `types.h` and `symbols.tsv` |
 
 The headless mode is handy for experiments. For example, this skis straight down from 1950 m and saves the moment the Yeti strikes:
@@ -71,4 +87,4 @@ build/port/skifree --headless --seed 7 --ticks 70 \
 
 - The game logic is a complete translation, including two original bugs (see "Porting" in `analysis/ski32/NOTES.md`). It hasn't been compared frame by frame against the original running under Windows.
 - No sound: the original 1.04 binary contains no sound data.
-- Next: a browser build with emscripten.
+- The browser build is checked in Chrome. It hasn't been tried in Firefox or Safari, or on touch screens (SDL turns taps into mouse events, so mouse steering may work).
