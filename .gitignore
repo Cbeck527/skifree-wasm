@@ -1,3 +1,11 @@
 build/
 .DS_Store
 .direnv/
+
+# SkiFree itself is Chris Pirih's; none of it is redistributed here.
+# `make` downloads ski32.exe; scripts/decompile.sh and wrestool regenerate the rest.
+etc/original-binaries/
+analysis/ski32/decompiled.c
+analysis/ski32/decompiled-game.c
+analysis/ski32/strings.tsv
+analysis/ski32/resources/

@@ -13,11 +13,21 @@ SDL_LIBS = $(shell pkg-config --libs sdl2)
 
 OUT := build/port
 EXE := etc/original-binaries/ski32.exe
+EXE_URL := https://ski.ihoc.net/ski32.exe
+EXE_SHA256 := 3572d3757638bc1ae388c3d007ba59ba1f370911901e2a35d2f1297e8cf0ff35
 
 all: $(OUT)/skifree $(OUT)/skifree-sim
 
 $(OUT):
 	mkdir -p $@
+
+# The original isn't redistributed here, so fetch it from its author's site.
+$(EXE):
+	mkdir -p $(@D)
+	curl -fsSL -o $@.tmp $(EXE_URL)
+	python3 -c 'import hashlib, sys; h = hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest(); sys.exit(h != sys.argv[2] and f"{sys.argv[1]}: sha256 {h}, expected {sys.argv[2]}")' $@.tmp $(EXE_SHA256) \
+		|| { rm -f $@.tmp; exit 1; }
+	mv $@.tmp $@
 
 $(OUT)/assets.c: tools/gen_assets.py $(EXE) | $(OUT)
 	python3 tools/gen_assets.py $(EXE) $@

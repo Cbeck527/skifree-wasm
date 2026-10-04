@@ -55,6 +55,8 @@
             # Native port (src/): SDL2 frontend, built with the stdenv C compiler.
             SDL2
             pkg-config
+            # make downloads ski32.exe, which isn't in the repo.
+            curl
 
             # Browser build (make web): emcc, plus node to run the core's
             # tests compiled to wasm.

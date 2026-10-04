@@ -1,8 +1,9 @@
 # ski32.exe — reverse-engineering notes
 
 How SkiFree 1.04 (Win32) works, recovered from `etc/original-binaries/ski32.exe`.
-The decompiled code in this directory uses the names and types described
-here. Regenerate it with `scripts/decompile.sh`.
+The decompiled code uses the names and types described here. It isn't in the
+repo, nor are the original's bitmaps or strings: run `make` to download
+`ski32.exe`, then `scripts/decompile.sh` to generate it.
 
 ## Files
 
@@ -10,13 +11,13 @@ here. Regenerate it with `scripts/decompile.sh`.
 |---|---|---|
 | `types.h` | Recovered structs and enums (`Actor`, `Placement`, `Sprite`, `Motion`, …). **Edit this.** | no — source of truth |
 | `symbols.tsv` | Names, signatures and comments for every game function and global. **Edit this.** | no — source of truth |
-| `decompiled-game.c` | Decompiled game code only (0x401000–0x406cc1), fully named and typed | yes |
-| `decompiled.c` | Everything, including the C runtime | yes |
+| `decompiled-game.c` | Decompiled game code only (0x401000–0x406cc1), fully named and typed | yes; not in the repo |
+| `decompiled.c` | Everything, including the C runtime | yes; not in the repo |
 | `functions.tsv` | Every function: size, region (game/crt), callers, callees | yes |
 | `imports.tsv` | Imported Win32 functions and which game functions call them | yes |
-| `strings.tsv` | Strings in the binary and which functions use them | yes |
-| `resources/bitmaps/` | 89 sprite bitmaps (`wrestool -x --type=2`) | `wrestool` |
-| `resources/sprite-sheet.png` | All sprites on one sheet, labelled by resource id | `scripts/sprite_sheet.py` |
+| `strings.tsv` | Strings in the binary and which functions use them | yes; not in the repo |
+| `resources/bitmaps/` | 89 sprite bitmaps (`wrestool -x --type=2`) | `wrestool`; not in the repo |
+| `resources/sprite-sheet.png` | All sprites on one sheet, labelled by resource id | `scripts/sprite_sheet.py`; not in the repo |
 
 Pipeline: `ghidra-analyzeHeadless` → `CreateMissingFunctions.java` (finds functions reached only through pointers, such as window and timer procedures) → `ApplyTypes.java` (parses `types.h`) → `ApplySymbols.java` (applies `symbols.tsv`) → `ExportAnalysis.java`. The Ghidra project is saved in `build/ghidra/` and opens in the GUI (`ghidra`).
 
@@ -24,7 +25,7 @@ All 108 game functions and all game globals are named. Most names come from read
 
 ## The binary
 
-- Stored in `etc/original-binaries/` with the two rebuilds, all downloaded from https://ski.ihoc.net/.
+- Downloaded from https://ski.ihoc.net/ into `etc/original-binaries/` by `make`. The two rebuilds compared below are on the same site; download them by hand if needed.
 - PE32 i386 GUI, linked 2005-10-02 with MSVC 6 (linker 6.0). The title card says "Version 1.04".
 - Not packed. Sections: `.text`, `.rdata`, `.data`, `.rsrc`.
 - Imports 96 functions: KERNEL32, USER32, GDI32, and `sndPlaySoundA` from WINMM.
@@ -198,7 +199,7 @@ Sprite variants: trees are 6/8 normal (49), 1/8 dead (50) and 1/8 big (51); rock
 
 ## Sprites (bitmap resource ids)
 
-See `resources/sprite-sheet.png`. All are 4-bit, 16-colour bitmaps.
+See `resources/sprite-sheet.png` (`scripts/sprite_sheet.py resources/bitmaps resources/sprite-sheet.png`). All are 4-bit, 16-colour bitmaps.
 
 | Ids | What |
 |---|---|

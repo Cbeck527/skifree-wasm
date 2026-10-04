@@ -11,6 +11,8 @@ make test          # headless checks
 make serve         # browser build; play at http://localhost:8000
 ```
 
+The game's sprites, strings and data tables aren't in this repo. The first build downloads `ski32.exe` from https://ski.ihoc.net/ and extracts them at build time.
+
 ## Playing
 
 | Key | Action |
@@ -47,8 +49,8 @@ It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first 
 
 | Path | What |
 |---|---|
-| `etc/original-binaries/` | The original `ski32.exe` (2005 Win32 build of 1.04) plus the VS6 and VS2019 rebuilds |
-| `analysis/ski32/` | Ghidra output: fully named and typed decompiled game code, recovered types (`types.h`), symbols, sprites, and **`NOTES.md`**, the full description of how the game works |
+| `etc/original-binaries/` | Not in the repo. `make` downloads the original `ski32.exe` (2005 Win32 build of 1.04) here and checks its SHA-256 |
+| `analysis/ski32/` | Recovered types (`types.h`), function and global names (`symbols.tsv`), and **`NOTES.md`**, the full description of how the game works. `scripts/decompile.sh` adds the fully named and typed decompiled code, which isn't in the repo |
 | `scripts/` | The decompilation pipeline (`decompile.sh` + Ghidra scripts) and helpers |
 | `src/ski.c` | The game core: a function-by-function port of the decompiled code |
 | `src/platform.h` | What the core needs from a frontend (clock, title, storage, message box) |
@@ -68,7 +70,7 @@ It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first 
 | `make web` | Browser build in `build/web/` |
 | `make serve` | Browser build, served at http://localhost:8000 |
 | `make web-test` | The core compiled to wasm and run under node must play the same games as native: traces, high-score lists and state hashes, including 2 × 30,000 ticks of random play |
-| `scripts/decompile.sh` | Re-run Ghidra and regenerate `analysis/ski32/` from `types.h` and `symbols.tsv` |
+| `scripts/decompile.sh` | Re-run Ghidra and regenerate `analysis/ski32/` from `types.h` and `symbols.tsv` (run `make` first so `ski32.exe` is there) |
 
 The headless mode is handy for experiments. For example, this skis straight down from 1950 m and saves the moment the Yeti strikes:
 
@@ -88,3 +90,9 @@ build/port/skifree --headless --seed 7 --ticks 70 \
 - The game logic is a complete translation, including two original bugs (see "Porting" in `analysis/ski32/NOTES.md`). It hasn't been compared frame by frame against the original running under Windows.
 - No sound: the original 1.04 binary contains no sound data.
 - The browser build is checked in Chrome. It hasn't been tried in Firefox or Safari, or on touch screens (SDL turns taps into mouse events, so mouse steering may work).
+
+## Copyright
+
+SkiFree, including its graphics and text, is © Chris Pirih. This repository contains none of the original binaries, graphics or decompiled code. The build extracts the game's data from your own download of `ski32.exe`, and `scripts/decompile.sh` generates the decompiled code from it. The browser build in `build/web/` does contain the game's graphics, extracted from that download.
+
+The port, tools and analysis here are released under the MIT License (see `LICENSE`), which covers this project's own work only.
