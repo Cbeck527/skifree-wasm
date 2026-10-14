@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb: realizes the flake's dev shell, makes login shells in
+# this repository enter it, and warms the builds. Safe to rerun.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() { printf '\n==> %s\n' "$*"; }
+timed() { local t=$SECONDS; "$@"; echo "    took $((SECONDS - t))s"; }
+
+# The orb base image ships single-user Nix with flakes enabled.
+[[ -x "$HOME/.nix-profile/bin/nix" ]] || { echo "error: Nix not found in ~/.nix-profile" >&2; exit 1; }
+
+# Login shells (Amp's commands and orb services) started in this repository
+# load the dev shell's full environment. `nix print-dev-env` takes ~2s per
+# call on a dirty worktree, so its output is cached by flake.nix + flake.lock.
+# Emscripten's cache defaults to /tmp under Nix; keep it in ~/.cache instead.
+step "Installing the dev shell hook in ~/.bash_profile"
+begin="# >>> skifree-wasm nix dev shell >>>"
+end="# <<< skifree-wasm nix dev shell <<<"
+touch "$HOME/.bash_profile"
+sed -i "/^$begin\$/,/^$end\$/d" "$HOME/.bash_profile"
+cat >> "$HOME/.bash_profile" <<EOF
+$begin
+if [[ -z "\${IN_NIX_SHELL:-}" && ( "\$PWD" == "$repo_root" || "\$PWD" == "$repo_root/"* ) ]]; then
+  __skifree_dir="\$HOME/.cache/skifree-devshell"
+  __skifree_env="\$__skifree_dir/\$(cat "$repo_root/flake.nix" "$repo_root/flake.lock" | sha256sum | cut -c1-16).sh"
+  if [[ ! -s "\$__skifree_env" ]]; then
+    mkdir -p "\$__skifree_dir" &&
+      "\$HOME/.nix-profile/bin/nix" --option warn-dirty false print-dev-env \\
+        --profile "\$__skifree_dir/profile" "$repo_root" > "\$__skifree_env.tmp" &&
+      mv "\$__skifree_env.tmp" "\$__skifree_env"
+  fi
+  if [[ -s "\$__skifree_env" ]]; then
+    source "\$__skifree_env" > /dev/null # quiet the shellHook banner
+    # Each source makes a temp dir and points TMPDIR at it; don't leak one per command.
+    rmdir "\$NIX_BUILD_TOP" 2> /dev/null
+    unset NIX_BUILD_TOP TMP TMPDIR TEMP TEMPDIR
+    export EM_CACHE="\${EM_CACHE:-\$HOME/.cache/emscripten}"
+  fi
+  unset __skifree_dir __skifree_env
+fi
+$end
+EOF
+
+# A clean login shell here triggers the hook, which realizes the dev shell
+# (~2.3 GiB from cache.nixos.org on a fresh orb) and caches its environment.
+in_devshell() { env -i -C "$repo_root" HOME="$HOME" PATH=/usr/bin:/bin bash -lc "$1"; }
+
+step "Realizing the Nix dev shell"
+timed in_devshell 'test -n "${IN_NIX_SHELL:-}" && command -v emcc ghidra-analyzeHeadless >/dev/null'
+
+# make downloads ski32.exe from ski.ihoc.net; the web build also compiles
+# emscripten's SDL2 port into EM_CACHE. Both are warm-ups, so a third-party
+# outage shouldn't fail setup and block the toolchain snapshot.
+step "Warming the native and browser builds"
+if ! timed in_devshell 'make -j"$(nproc)" all && make web'; then
+  echo "warning: build warm-up failed; run make in the orb to retry" >&2
+fi
+
+step "Done"

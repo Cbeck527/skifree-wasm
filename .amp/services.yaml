@@ -1,0 +1,8 @@
+services:
+  web:
+    # make serve rebuilds build/web and serves it on port 8000. Restart the
+    # service to pick up source changes.
+    command: make serve
+    port: 8000
+    portal:
+      title: SkiFree
