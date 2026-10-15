@@ -1,0 +1,19 @@
+# Allow only build inputs. Never send credentials, local builds, Nix symlinks,
+# original binaries, or orb data to a remote Docker builder.
+**
+!Dockerfile
+!.dockerignore
+!flake.nix
+!flake.lock
+!package.json
+!package-lock.json
+!Makefile
+!LICENSE
+!src/
+!src/**
+!tools/
+!tools/gen_assets.py
+!web/
+!web/**
+!server/
+!server/server.mjs

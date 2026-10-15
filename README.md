@@ -40,7 +40,7 @@ Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N`
 
 `nix develop` also builds the locked npm dependencies (including `ws`) in the Nix store and links them into `node_modules`. To add a Node dependency, use `npm install --package-lock-only <package>` and re-enter the shell; don't run `npm install` or `npm ci` over the Nix-managed links. Outside Nix, `make serve` installs dependencies with `npm ci` as before.
 
-The Nix shell and `make server` check that direct dependencies actually resolve
+Both Nix shells and `make server` check that direct dependencies actually resolve
 to the locked store directories. If an older npm-managed `node_modules` conflicts,
 move that directory aside and re-enter `nix develop`; the check never deletes it.
 
@@ -98,6 +98,19 @@ An HTTPS reverse proxy must forward WebSocket upgrades on `/ws` as well as HTTP.
 restarting the process removes everyone, and clients reconnect to the same seeded
 terrain. Authentication, persistence and production abuse protection are not
 part of this checkpoint.
+
+### Railway deployment
+
+See [the Railway project specification](server/RAILWAY.md) for the single-service
+topology, image build contract, resource targets, variables, rollout/reset policy,
+and launch checks. The root `Dockerfile` builds a non-root Node image with both
+WASM bundles; `.railway/railway.ts` defines one always-on mountain service.
+`nix develop` includes the pinned Railway CLI and SDK; `npm run railway:check`
+validates the configuration offline. The public mountain is deployed at
+[public-mountain-production.up.railway.app](https://public-mountain-production.up.railway.app)
+on one replica in US East (Virginia). One `production` environment serves both
+testing and public play; releases are manual and reset the room. Sustained-load
+benchmarks, spend alerts and external uptime monitoring remain to be set up.
 
 ## Layout
 

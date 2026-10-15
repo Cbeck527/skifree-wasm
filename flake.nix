@@ -16,7 +16,7 @@
     in
     {
       devShells = forAllSystems (pkgs: let
-        # Build the locked npm graph in the Nix store.
+        # Both shells consume the same locked npm graph, including the Railway SDK.
         npmDeps = pkgs.importNpmLock.buildNodeModules {
           npmRoot = ./.;
           inherit (pkgs) nodejs;
@@ -41,6 +41,24 @@
           JS
         '';
       in {
+        # Container builds don't need Ghidra, disassemblers, or native SDL tools.
+        build = pkgs.mkShell {
+          inherit npmDeps checkNpmDeps;
+          packages = with pkgs; [
+            emscripten
+            nodejs
+            gnumake
+            curl
+            cacert
+            (python3.withPackages (ps: [ ps.pefile ]))
+            importNpmLock.hooks.linkNodeModulesHook
+          ];
+          shellHook = ''
+            linkNodeModulesHook
+            ${checkNpmDeps} || exit 1
+          '';
+        };
+
         default = pkgs.mkShell {
           # Build the locked server libraries (including ws) in the Nix store.
           inherit npmDeps checkNpmDeps;
@@ -90,6 +108,9 @@
             emscripten
             nodejs
             importNpmLock.hooks.linkNodeModulesHook
+
+            # Railway project setup, deployment and operational tooling.
+            railway
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not
