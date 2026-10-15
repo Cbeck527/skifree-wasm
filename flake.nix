@@ -15,8 +15,36 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      devShells = forAllSystems (pkgs: {
+      devShells = forAllSystems (pkgs: let
+        # Build the locked npm graph in the Nix store.
+        npmDeps = pkgs.importNpmLock.buildNodeModules {
+          npmRoot = ./.;
+          inherit (pkgs) nodejs;
+        };
+        # The linker preserves npm-managed directories; never silently use those.
+        checkNpmDeps = pkgs.writeShellScript "check-skifree-node-deps" ''
+          ${pkgs.nodejs}/bin/node <<'JS'
+          const fs = require('node:fs');
+          const pkg = require('${./package.json}');
+          for (const name of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) {
+            let matches = false;
+            try {
+              matches = fs.realpathSync('node_modules/' + name) ===
+                fs.realpathSync('${npmDeps}/node_modules/' + name);
+            } catch {}
+            if (!matches) {
+              console.error('Nix dependency mismatch: node_modules/' + name +
+                '. Move the npm-managed node_modules aside and re-enter nix develop. No files were deleted.');
+              process.exitCode = 1;
+            }
+          }
+          JS
+        '';
+      in {
         default = pkgs.mkShell {
+          # Build the locked server libraries (including ws) in the Nix store.
+          inherit npmDeps checkNpmDeps;
+
           packages = with pkgs; [
             # Decompiler / disassembler. ghidra-bin is the official release build
             # (includes the native decompiler for Apple Silicon); provides `ghidra`
@@ -58,10 +86,10 @@
             # make downloads ski32.exe, which isn't in the repo.
             curl
 
-            # Browser build (make web): emcc, plus node to run the core's
-            # tests compiled to wasm.
+            # Browser/server WASM builds and the authoritative Node server.
             emscripten
             nodejs
+            importNpmLock.hooks.linkNodeModulesHook
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not
@@ -69,6 +97,8 @@
           # a Homebrew wine build; or skip it and go straight to a native port.
 
           shellHook = ''
+            linkNodeModulesHook
+            ${checkNpmDeps} || exit 1
             echo "skifree shell: make (native port), ghidra, r2, imhex, llvm-objdump, wrestool, python (pefile/capstone/lief/r2pipe/pillow)"
           '';
         };

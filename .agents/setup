@@ -14,7 +14,7 @@ timed() { local t=$SECONDS; "$@"; echo "    took $((SECONDS - t))s"; }
 
 # Login shells (Amp's commands and orb services) started in this repository
 # load the dev shell's full environment. `nix print-dev-env` takes ~2s per
-# call on a dirty worktree, so its output is cached by flake.nix + flake.lock.
+# call on a dirty worktree, so cache it by the flake and npm manifests/locks.
 # Emscripten's cache defaults to /tmp under Nix; keep it in ~/.cache instead.
 step "Installing the dev shell hook in ~/.bash_profile"
 begin="# >>> skifree-wasm nix dev shell >>>"
@@ -25,7 +25,7 @@ cat >> "$HOME/.bash_profile" <<EOF
 $begin
 if [[ -z "\${IN_NIX_SHELL:-}" && ( "\$PWD" == "$repo_root" || "\$PWD" == "$repo_root/"* ) ]]; then
   __skifree_dir="\$HOME/.cache/skifree-devshell"
-  __skifree_env="\$__skifree_dir/\$(cat "$repo_root/flake.nix" "$repo_root/flake.lock" | sha256sum | cut -c1-16).sh"
+  __skifree_env="\$__skifree_dir/\$(cat "$repo_root/flake.nix" "$repo_root/flake.lock" "$repo_root/package.json" "$repo_root/package-lock.json" | sha256sum | cut -c1-16).sh"
   if [[ ! -s "\$__skifree_env" ]]; then
     mkdir -p "\$__skifree_dir" &&
       "\$HOME/.nix-profile/bin/nix" --option warn-dirty false print-dev-env \\
@@ -33,7 +33,9 @@ if [[ -z "\${IN_NIX_SHELL:-}" && ( "\$PWD" == "$repo_root" || "\$PWD" == "$repo_
       mv "\$__skifree_env.tmp" "\$__skifree_env"
   fi
   if [[ -s "\$__skifree_env" ]]; then
-    source "\$__skifree_env" > /dev/null # quiet the shellHook banner
+    pushd "$repo_root" > /dev/null
+    source "\$__skifree_env" > /dev/null # runs shellHook, linking Node dependencies
+    popd > /dev/null
     # Each source makes a temp dir and points TMPDIR at it; don't leak one per command.
     rmdir "\$NIX_BUILD_TOP" 2> /dev/null
     unset NIX_BUILD_TOP TMP TMPDIR TEMP TEMPDIR

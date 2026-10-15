@@ -38,6 +38,12 @@ Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N`
 
 `make serve` builds the browser and server WASM and starts one public mountain on port 8000. Opening the website automatically joins it. Requires Node 22+ and emscripten (both in the Nix development shell). Set `PORT` to change the listening port.
 
+`nix develop` also builds the locked npm dependencies (including `ws`) in the Nix store and links them into `node_modules`. To add a Node dependency, use `npm install --package-lock-only <package>` and re-enter the shell; don't run `npm install` or `npm ci` over the Nix-managed links. Outside Nix, `make serve` installs dependencies with `npm ci` as before.
+
+The Nix shell and `make server` check that direct dependencies actually resolve
+to the locked store directories. If an older npm-managed `node_modules` conflicts,
+move that directory aside and re-enter `nix develop`; the check never deletes it.
+
 `make web` builds the frontend into `build/web/` (`index.html`, `index.js`, `index.wasm`, `multiplayer.js`). Multiplayer needs the Node server, not just a static host. For original single-player, open `/?single=1`; that mode also works on a static host with all four frontend files. Browsers won't load `.wasm` from a `file://` page.
 
 It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first build downloads and compiles emscripten's SDL2 port into its cache, which under Nix is in `/tmp`, so it happens again (with network needed) after a reboot. The differences:

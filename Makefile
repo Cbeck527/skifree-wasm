@@ -108,7 +108,12 @@ $(SERVER)/core.cjs: src/server.c src/ski.c $(OUT)/assets.c $(CORE_H)
 node_modules/.package-lock.json: package.json package-lock.json
 	npm ci --ignore-scripts
 
+ifneq ($(npmDeps),)
+server: $(SERVER)/core.cjs $(npmDeps)/node_modules/ws/package.json
+	$(checkNpmDeps)
+else
 server: $(SERVER)/core.cjs node_modules/.package-lock.json
+endif
 
 serve: web server
 	node server/server.mjs
