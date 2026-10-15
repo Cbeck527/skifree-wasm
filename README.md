@@ -8,7 +8,7 @@ A reverse-engineered, portable C port of **SkiFree** (Chris Pirih, 1991), built 
 nix develop        # or: direnv allow
 make run           # build and play
 make test          # headless checks
-make serve         # browser build; play at http://localhost:8000
+make serve         # public multiplayer server; play at http://localhost:8000
 ```
 
 The game's sprites, strings and data tables aren't in this repo. The first build downloads `ski32.exe` from https://ski.ihoc.net/ and extracts them at build time.
@@ -28,7 +28,7 @@ The game's sprites, strings and data tables aren't in this repo. The first build
 | F3 | Pause |
 | `f` | Fast mode |
 
-Mouse steering is live whenever the cursor moves over the window, as in the original. The game pauses when the window loses focus.
+Mouse steering is live whenever the cursor moves over the window, as in the original. Single-player pauses when the window loses focus; the public mountain never pauses. F2 restarts only your skier in multiplayer; F3 and fast mode are single-player only.
 
 The three courses start below the signs at the top: Slalom (left), Freestyle (middle) and Tree Slalom (right). Ski through the start banners to begin. Keep going downhill long enough and you'll meet the Yeti.
 
@@ -36,41 +36,62 @@ Options: `--size WxH` (window size in points, default 640x640) and `--tick-ms N`
 
 ## In the browser
 
-`make web` builds the whole site into `build/web/` (`index.html`, `index.js`, `index.wasm`: about 900 KB, 250 KB gzipped); copy those three files to any static host to publish it. `make serve` builds and serves it locally, since browsers won't load `.wasm` from a `file://` page.
+`make serve` builds the browser and server WASM and starts one public mountain on port 8000. Opening the website automatically joins it. Requires Node 22+ and emscripten (both in the Nix development shell). Set `PORT` to change the listening port.
+
+`make web` builds the frontend into `build/web/` (`index.html`, `index.js`, `index.wasm`, `multiplayer.js`). Multiplayer needs the Node server, not just a static host. For original single-player, open `/?single=1`; that mode also works on a static host with all four frontend files. Browsers won't load `.wasm` from a `file://` page.
 
 It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first build downloads and compiles emscripten's SDL2 port into its cache, which under Nix is in `/tmp`, so it happens again (with network needed) after a reboot. The differences:
 
 - The game fills the browser window and follows it when resized, at full resolution on high-DPI screens. The page is `web/shell.html`.
 - High scores are kept in the browser's `localStorage` (`SkiFree.SS`, `SkiFree.GS`, `SkiFree.FS`) and shown with `alert()`.
-- Esc does nothing (a page can't minimize itself). Switching tabs or windows pauses the game, like losing focus on the desktop.
+- Esc does nothing (a page can't minimize itself). Switching tabs or windows pauses single-player only; the server keeps simulating multiplayer skiers.
 - Browser shortcuts (Ctrl/Cmd/Alt combinations, F5, F11 for full screen) keep working; the game only takes F2 and F3.
 
-## Multiplayer foundation (in progress)
+## Public multiplayer (in progress)
 
-The browser still runs the original single-player game. The first multiplayer
-checkpoint is a headless public-mountain simulation, exposed by `src/ski_world.h`
-and implemented alongside the shared physics in `src/ski.c`. Networking and a
-multiplayer browser frontend are not connected yet.
+One Node process hosts one public mountain. The server runs the shared C physics
+as WASM, exposed by `src/ski_world.h`, at 25 ticks/second. Browsers send controls,
+not positions, and receive authoritative snapshots over same-origin `/ws`
+(WebSocket, or secure WebSocket under HTTPS). Nearby skiers have colored anonymous
+labels; the HUD shows total population, distance, speed, style and completed runs.
 
 - A seed generates one fixed mountain, including course signs, gates, trees,
   rocks, moguls, bumps and jumps. Camera size and movement do not change it.
-- Up to 128 skiers have independent input, motion, style points and lifecycles.
-  They collide with terrain, not one another. This is a simulation limit, not
-  a measured network capacity.
+- Up to 128 connections have independent input, motion, style points and lifecycles.
+  They collide with terrain, not one another. Full-room clients retry automatically.
+  Overflow is rejected with HTTP 503 before the WebSocket upgrade, including while
+  admitted connections are closing; browsers show the generic reconnect message.
+  This is a tested admission limit, not a production load/latency guarantee.
 - Each skier gets a personal yeti chase beyond 2000 m. The chase lasts at most
   five seconds, followed by a three-second eating animation and an automatic
   respawn. F2 also resets only that skier; neither kind of reset regenerates
   the mountain or affects other players.
-- The world advances in explicit 40 ms steps, regardless of window focus or
-  wall-clock time. Snapshots contain world positions and sprite IDs, leaving
-  camera projection and transport to the frontend/server.
+- Terrain is sent once on joining. Each tick sends the local skier and nearby
+  players; browser rendering interpolates snapshots with a player-centered camera.
+  There is no client-side prediction yet, so controls include network latency.
+- Disconnects remove the skier. Reconnecting creates a new identity at the top.
+  Browsers abandon silent connections after five seconds and retry after two,
+  discarding stale controls rather than accumulating or replaying them.
+  Heartbeats, bounded input queues, data/control-frame rate limits and slow-client removal
+  keep one connection from accumulating unlimited work or buffered output.
 
-Run `make world-test` for this checkpoint, or `make test` for it and the original
-single-player checks. `make web-test` runs the same multiplayer contracts under
-WASM/Node and compares their output with native execution. Course timing/gate
-results, moving NPCs, mouse steering, names/colors, networking and browser
-integration remain later work; multiplayer style points currently cover the
+Run `make network-test` for real HTTP/WebSocket tests (including 128 joins,
+input isolation, shared terrain, interest filtering, reset/rejoin, overflow and
+control-frame floods), aborted-download cleanup (Linux), shutdown with a stalled
+reader, and browser transport recovery using a simulated clock/socket.
+`make world-test` covers simulation contracts; `make test` includes those and
+original single-player checks. `make web-test` compares WASM and native execution.
+Course timing/gate results, moving NPCs, private rooms, prediction and production
+load testing remain later work; multiplayer style points currently cover the
 whole run rather than only the freestyle course.
+
+For hosting, build with `make web server`, then run `npm start`. Keep one server
+process for this room; multiple replicas would create separate populations.
+An HTTPS reverse proxy must forward WebSocket upgrades on `/ws` as well as HTTP.
+`GET /health` reports population, tick and capacity. Room state is in memory;
+restarting the process removes everyone, and clients reconnect to the same seeded
+terrain. Authentication, persistence and production abuse protection are not
+part of this checkpoint.
 
 ## Layout
 
@@ -83,6 +104,8 @@ whole run rather than only the freestyle course.
 | `src/platform.h` | What the core needs from a frontend (clock, title, storage, message box) |
 | `src/main_sdl.c` | SDL2 frontend: window, input, rendering, high scores; also the browser frontend |
 | `web/shell.html` | The page around the browser build |
+| `web/multiplayer.js` | Multiplayer transport, camera, interpolation and HUD |
+| `server/server.mjs`, `src/server.c` | Public HTTP/WebSocket server and authoritative WASM boundary |
 | `src/headless.c`, `tests/` | Headless runner (scripted input, simulated clock), test suite, fuzzer |
 | `tools/gen_assets.py` | Extracts bitmaps, strings and data tables from `ski32.exe` into C at build time |
 
@@ -96,7 +119,9 @@ whole run rather than only the freestyle course.
 | `make world-test` | Headless shared-mountain, multi-skier, collision and respawn contracts |
 | `make sanitize` | 2 × 30,000 ticks of random play under ASan + UBSan |
 | `make web` | Browser build in `build/web/` |
-| `make serve` | Browser build, served at http://localhost:8000 |
+| `make server` | Node/WASM server build and locked dependencies |
+| `make serve` | Build and run the public mountain at http://localhost:8000 |
+| `make network-test` | Real HTTP/WebSocket multiplayer contracts and admission limit |
 | `make web-test` | The core compiled to wasm and run under node must play the same games as native: traces, high-score lists and state hashes, including 2 × 30,000 ticks of random play |
 | `scripts/decompile.sh` | Re-run Ghidra and regenerate `analysis/ski32/` from `types.h` and `symbols.tsv` (run `make` first so `ski32.exe` is there) |
 

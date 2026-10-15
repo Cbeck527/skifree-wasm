@@ -35,6 +35,15 @@ static uint32_t g_lastTimer;
 static int g_tickMs = SKI_TICK_MS;
 static int g_vsync;
 
+#ifdef __EMSCRIPTEN__
+EM_JS(int, web_multiplayer_active, (void), { return Module.skiMultiplayer.enabled ? 1 : 0; });
+EM_JS(void, web_multiplayer_start, (void), { Module.skiMultiplayer.start(); });
+EM_JS(void, web_multiplayer_draw, (int width, int height), { Module.skiMultiplayer.draw(width, height); });
+EM_JS(void, web_multiplayer_key, (int key), { Module.skiMultiplayer.key(key); });
+EM_JS(void, web_multiplayer_aim, (int x, int y), { Module.skiMultiplayer.aim(x, y); });
+EM_JS(void, web_multiplayer_click, (void), { Module.skiMultiplayer.click(); });
+#endif
+
 /* ---- platform.h --------------------------------------------------------- */
 
 uint32_t plat_ticks(void) { return g_headless ? headless_time : SDL_GetTicks(); }
@@ -207,6 +216,28 @@ static void draw_text(int x, int y, const char *s)
     }
 }
 
+#ifdef __EMSCRIPTEN__
+/* Network rendering uses the same sprites and pixel font as single-player. */
+EMSCRIPTEN_KEEPALIVE void ski_web_sprite(int id, int x, int y)
+{
+    if (id > 0 && id < SKI_NUM_SPRITES)
+        draw_sprite(NULL, id, x, y);
+}
+
+EMSCRIPTEN_KEEPALIVE void ski_web_label(uint32_t id, int x, int y, int self)
+{
+    static const uint8_t colors[][3] = {
+        {20, 80, 180}, {180, 35, 35}, {0, 115, 70},
+        {120, 40, 150}, {170, 85, 0}, {0, 110, 135},
+    };
+    const uint8_t *color = colors[id % 6];
+    char label[32];
+    snprintf(label, sizeof label, "Skier-%u%s", id, self ? " (you)" : "");
+    SDL_SetRenderDrawColor(g_renderer, color[0], color[1], color[2], 255);
+    draw_text(x - (int)strlen(label) * CELL_W / 2, y, label);
+}
+#endif
+
 /* The SkiStatus child window: top right, framed, labels then values. */
 static void draw_status(int clientWidth)
 {
@@ -242,6 +273,12 @@ static void render(int width, int height)
     (void)height;
     SDL_SetRenderDrawColor(g_renderer, 255, 255, 255, 255);
     SDL_RenderClear(g_renderer);
+#ifdef __EMSCRIPTEN__
+    if (web_multiplayer_active()) {
+        web_multiplayer_draw(width, height);
+        return;
+    }
+#endif
     ski_draw(draw_sprite, NULL);
     draw_status(width);
 }
@@ -283,6 +320,20 @@ static void handle_event(const SDL_Event *e)
 {
     int vk, w, h;
     const char *c;
+#ifdef __EMSCRIPTEN__
+    if (web_multiplayer_active()) {
+        if (e->type == SDL_KEYDOWN) {
+            vk = vk_from_key(e->key.keysym.sym);
+            if (vk) web_multiplayer_key(vk);
+        } else if (e->type == SDL_MOUSEMOTION) {
+            web_multiplayer_aim(e->motion.x, e->motion.y);
+        } else if (e->type == SDL_MOUSEBUTTONDOWN && e->button.button == SDL_BUTTON_LEFT) {
+            web_multiplayer_click();
+        }
+        /* Focus/resize never pause, resize or restart the authoritative world. */
+        return;
+    }
+#endif
     switch (e->type) {
     case SDL_QUIT:
         g_running = 0;
@@ -351,6 +402,9 @@ static void frame(void)
     now = SDL_GetTicks();
     if (now - g_lastTimer >= (uint32_t)g_tickMs) {
         g_lastTimer = now - g_lastTimer >= 2u * g_tickMs ? now : g_lastTimer + g_tickMs;
+#ifdef __EMSCRIPTEN__
+        if (!web_multiplayer_active())
+#endif
         ski_timer();
     }
 
@@ -450,6 +504,8 @@ int main(int argc, char **argv)
         return 1;
     g_lastTimer = SDL_GetTicks();
 #ifdef __EMSCRIPTEN__
+    if (web_multiplayer_active())
+        web_multiplayer_start();
     /* The browser calls frame() before each repaint. This doesn't return. */
     emscripten_set_main_loop(frame, 0, 1);
 #else

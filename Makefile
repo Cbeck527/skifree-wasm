@@ -78,8 +78,8 @@ sanitize: $(OUT)/assets.c
 	$(SAN_ENV) tests/fuzz.sh $(SAN)/skifree-sim 42
 	$(SAN_ENV) tests/fuzz.sh $(SAN)/skifree-sim 7
 
-# Browser build: build/web/index.html, index.js and index.wasm, the whole
-# deployable site. emscripten fetches and builds its SDL2 port into its cache
+# Browser frontend: HTML, JS and WASM in build/web; multiplayer also needs
+# the server below. emscripten fetches and builds SDL2 into its cache
 # on first use. Browsers won't load .wasm from file://, hence `make serve`.
 WEB := build/web
 EMCC := emcc
@@ -87,15 +87,34 @@ WEB_CFLAGS := -O2 -Wall -Wextra -std=c99
 WEB_SRC := src/ski.c src/headless.c src/main_sdl.c $(OUT)/assets.c
 CORE_H := src/ski.h src/ski_world.h src/assets.h src/platform.h src/headless.h
 
-web: $(WEB)/index.html
+web: $(WEB)/index.html $(WEB)/multiplayer.js
 
 $(WEB)/index.html: $(WEB_SRC) $(CORE_H) src/font5x7.h web/shell.html
 	mkdir -p $(WEB)
 	$(EMCC) $(WEB_CFLAGS) -sUSE_SDL=2 -sENVIRONMENT=web -Isrc $(WEB_SRC) \
 		--shell-file web/shell.html -o $@
 
-serve: web
-	python3 -m http.server -d $(WEB) 8000
+$(WEB)/multiplayer.js: web/multiplayer.js
+	mkdir -p $(WEB)
+	cp $< $@
+
+SERVER := build/server
+$(SERVER)/core.cjs: src/server.c src/ski.c $(OUT)/assets.c $(CORE_H)
+	mkdir -p $(SERVER)
+	$(EMCC) $(WEB_CFLAGS) --no-entry -sENVIRONMENT=node -sMODULARIZE=1 \
+		-sEXPORT_NAME=createCore -sEXPORTED_RUNTIME_METHODS='["UTF8ToString"]' -Isrc \
+		src/server.c src/ski.c $(OUT)/assets.c -lm -o $@
+
+node_modules/.package-lock.json: package.json package-lock.json
+	npm ci --ignore-scripts
+
+server: $(SERVER)/core.cjs node_modules/.package-lock.json
+
+serve: web server
+	node server/server.mjs
+
+network-test: web server
+	npm test
 
 # The SDL-free core compiled to wasm, run under node by a wrapper script so
 # it takes the same command lines as the native skifree-sim.
@@ -121,6 +140,6 @@ web-test: $(OUT)/skifree-sim $(WEBSIM)/skifree-sim $(OUT)/world-test $(WEBSIM)/w
 	@echo 'multiplayer wasm matches native'
 
 clean:
-	rm -rf $(OUT) $(SAN) $(WEB) $(WEBSIM)
+	rm -rf $(OUT) $(SAN) $(WEB) $(WEBSIM) $(SERVER)
 
-.PHONY: all run test world-test sanitize web serve web-test clean
+.PHONY: all run test world-test sanitize web server serve web-test network-test clean

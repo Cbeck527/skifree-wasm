@@ -1,0 +1,10 @@
+{
+  "name": "skifree-wasm",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server/server.mjs",
+    "test": "node --test tests/server.test.mjs"
+  },
+  "dependencies": { "ws": "8.22.0" }
+}
