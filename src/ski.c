@@ -1,9 +1,10 @@
 /*
  * SkiFree game core, ported from ski32.exe (SkiFree 1.04, ski2.c).
  *
- * Every function here corresponds to one in analysis/ski32/decompiled-game.c
- * and keeps its name. Arithmetic on positions and velocities is done the way
- * the original does it, in 16 bits (S16), including the wrap past y = 32767.
+ * The original game's functions follow analysis/ski32/decompiled-game.c.
+ * Arithmetic on positions and velocities is done the way the original does
+ * it, in 16 bits (S16), including the wrap past y = 32767. The public-mountain
+ * API at the end reuses its physics within bounded, camera-independent worlds.
  *
  * Differences from the original, all invisible in play:
  *  - Rendering is a full redraw by the frontend (ski_draw), so the dirty
@@ -22,6 +23,7 @@
 
 #include "assets.h"
 #include "platform.h"
+#include "ski_world.h"
 
 typedef int16_t s16;
 #define S16(v) ((int16_t)(v))
@@ -180,6 +182,8 @@ typedef struct Actor {
      * drawn (if it was on screen then). See ActorOrGhost. */
     int wasDrawn;
     s16 drawnY;
+    int multiplayer; /* outside the original's actor pool and viewport budget */
+    int32_t stylePoints;
 } Actor;
 
 typedef struct Placement {
@@ -391,10 +395,12 @@ static int IsFlatSprite(s16 spriteId) { return spriteId == SPR_MOGUL || spriteId
 static Actor *SetActorSprite(Actor *a, uint16_t spriteId)
 {
     if (spriteId != a->spriteId) {
-        g_onScreenArea -= a->sprite->area;
+        if (!a->multiplayer)
+            g_onScreenArea -= a->sprite->area;
         a->spriteId = spriteId;
         a->sprite = &g_sprites[spriteId];
-        g_onScreenArea += a->sprite->area;
+        if (!a->multiplayer)
+            g_onScreenArea += a->sprite->area;
         a->flags |= AF_MOVED;
         if (IsFlatSprite((s16)spriteId))
             a->flags |= AF_FLAT;
@@ -440,7 +446,7 @@ static Actor *MoveActor(Actor *a)
     s16 x = S16(a->x + a->dx);
     s16 y = S16(a->y + a->dy);
     s16 z = S16(a->z + a->dz);
-    if (g_fastMode) {
+    if (!a->multiplayer && g_fastMode) {
         x = S16(x + a->dx);
         y = S16(y + a->dy);
         z = S16(z + a->dz);
@@ -492,9 +498,11 @@ static Actor *ApplyMotion(Actor *a, const SkiMotion *m)
 
 /* ---- Scoring ------------------------------------------------------------ */
 
-static void AddStyle(int points)
+static void AddStyle(Actor *a, int points)
 {
-    if (g_inFreestyle)
+    if (a->multiplayer)
+        a->stylePoints += points;
+    else if (g_inFreestyle)
         g_stylePoints += points;
 }
 
@@ -777,7 +785,7 @@ static Actor *UpdateActor(Actor *a)
                 /* Original bug, kept: the table yields PS_CRASHED (11) for a
                  * bad landing, never PS_TUMBLE, so this never fires. */
                 if (state == PS_TUMBLE) {
-                    AddStyle(-64);
+                    AddStyle(a, -64);
                     plat_play_sound(SND_CRASH);
                 } else {
                     plat_play_sound(SND_LAND);
@@ -789,16 +797,16 @@ static Actor *UpdateActor(Actor *a)
     a = SetActorState(a, state);
     switch (state) {
     case PS_WALK_LEFT: case PS_WALK_RIGHT: case PS_CLIMB_LEFT: case PS_CLIMB_RIGHT:
-        AddStyle(-1);
+        AddStyle(a, -1);
         break;
     case PS_JUMP_BACK:
-        AddStyle(2);
+        AddStyle(a, 2);
         break;
     case PS_FLIP1: case PS_FLIP2:
-        AddStyle(4);
+        AddStyle(a, 4);
         break;
     case PS_FLIP_LEFT: case PS_FLIP_RIGHT:
-        AddStyle(8);
+        AddStyle(a, 8);
         break;
     }
     CheckSlalom(a, prevX, prevY);
@@ -843,7 +851,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
             if (crossed)
                 a->dy = S16(a->dy / 2);
             if (b->spriteId == SPR_DOG_MESS) {
-                AddStyle(-16);
+                AddStyle(a, -16);
                 return SetActorState(a, state);
             }
             break;
@@ -864,7 +872,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
                 if (bTop < az) {
                     if (b->spriteId == SPR_ITEM) {
                         DeleteActor(b);
-                        AddStyle(100);
+                        AddStyle(a, 100);
                         return SetActorState(a, state);
                     }
                     break;
@@ -884,12 +892,12 @@ static Actor *HandleCollision(Actor *a, Actor *b)
             if (bTop < az || S16(a->sprite->height + az) < b->z) {
                 /* Over it (or under it). */
                 if (bType == AT_BURNING_TREE) {
-                    AddStyle(1000);
+                    AddStyle(a, 1000);
                     b->type = AT_TREE;
                     SetActorSprite(b, SPR_DEAD_TREE);
                     return SetActorState(a, state);
                 }
-                AddStyle(6);
+                AddStyle(a, 6);
                 return SetActorState(a, state);
             }
             if (!crossed)
@@ -911,7 +919,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
                 if (b->spriteId == SPR_DEAD_TREE) {
                     b->type = AT_BURNING_TREE;
                     SetActorState(b, FIRE1);
-                    AddStyle(16);
+                    AddStyle(a, 16);
                     return SetActorState(a, PS_TUMBLE);
                 }
             }
@@ -919,7 +927,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
                 SetActorSprite(b, SPR_ITEM);
                 return SetActorState(a, state);
             }
-            AddStyle(-32);
+            AddStyle(a, -32);
             plat_play_sound(SND_CRASH);
             return SetActorState(a, state);
 
@@ -932,7 +940,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
                 break;
         bounce:
             a->dz = S16(a->dy / 2);
-            AddStyle(1);
+            AddStyle(a, 1);
             plat_play_sound(SND_JUMP);
             return SetActorState(a, state);
 
@@ -944,7 +952,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
             break;
 
         hop:
-            AddStyle(1);
+            AddStyle(a, 1);
             plat_play_sound(SND_JUMP);
             return SetActorState(a, PS_JUMP);
         }
@@ -954,14 +962,14 @@ static Actor *HandleCollision(Actor *a, Actor *b)
         if (state > SK_RIGHT)
             break;
         if (bType == AT_PLAYER)
-            AddStyle(20);
+            AddStyle(a, 20);
         plat_play_sound(SND_SKIER_HIT);
         return SetActorState(a, b->z > 0 ? SK_CRASHED_AIR : SK_CRASHED);
 
     case AT_DOG:
         if (state < DOG_WOOF1 && (b->dx != 0 || b->dy != 0)) {
             if (bType == AT_PLAYER)
-                AddStyle(3);
+                AddStyle(a, 3);
             plat_play_sound(SND_DOG_HIT);
             return SetActorState(a, DOG_WOOF1);
         }
@@ -970,7 +978,7 @@ static Actor *HandleCollision(Actor *a, Actor *b)
     case AT_SNOWBOARDER:
         switch (bType) {
         case AT_PLAYER:
-            AddStyle(20);
+            AddStyle(a, 20);
             /* fall through */
         case AT_SKIER:
         case AT_SNOWBOARDER:
@@ -1879,30 +1887,15 @@ static void OnResize(int width, int height)
 
 /* ---- Input -------------------------------------------------------------- */
 
-static void OnKeyDown(int vk)
+static void PlayerKeyDown(Actor *player, int vk)
 {
     int state, d;
     s16 z;
 
-    switch (vk) {
-    case SKI_VK_RETURN:
-        if (g_player != NULL)
-            return;
-        /* fall through: Enter restarts after being eaten */
-    case SKI_VK_F2:
-        RestartGame();
+    if (player == NULL)
         return;
-    case SKI_VK_ESCAPE:
-        plat_minimize();
-        return;
-    case SKI_VK_F3:
-        TogglePause();
-        return;
-    }
-    if (g_player == NULL)
-        return;
-    state = g_player->state;
-    z = g_player->z;
+    state = player->state;
+    z = player->z;
     if (state != PS_CRASHED && state != PS_TUMBLE) {
         switch (vk) {
         case SKI_VK_PRIOR:
@@ -1930,25 +1923,25 @@ static void OnKeyDown(int vk)
             SKI_ASSERT(state <= PS_FLIP_RIGHT, 0xf63);
             state = ski_turnTable[state][0];
             if (state == PS_WALK_LEFT) {
-                d = g_player->dx - 8;
+                d = player->dx - 8;
                 if (d < -7)
                     d = -8;
-                g_player->dx = S16(d);
+                player->dx = S16(d);
             }
             break;
         case SKI_VK_UP:
         case SKI_VK_NUMPAD0 + 8:
             switch (state) {
             case PS_LEFT: case PS_WALK_LEFT: case PS_SITTING:
-                if (g_player->dy == 0) {
+                if (player->dy == 0) {
                     state = PS_CLIMB_LEFT;
-                    g_player->dy = -4;
+                    player->dy = -4;
                 }
                 break;
             case PS_RIGHT: case PS_WALK_RIGHT:
-                if (g_player->dy == 0) {
+                if (player->dy == 0) {
                     state = PS_CLIMB_RIGHT;
-                    g_player->dy = -4;
+                    player->dy = -4;
                 }
                 break;
             case PS_JUMP: state = PS_FLIP1; break;
@@ -1963,10 +1956,10 @@ static void OnKeyDown(int vk)
             SKI_ASSERT(state <= PS_FLIP_RIGHT, 0xf6b);
             state = ski_turnTable[state][1];
             if (state == PS_WALK_RIGHT) {
-                d = g_player->dx + 8;
+                d = player->dx + 8;
                 if (d > 7)
                     d = 8;
-                g_player->dx = S16(d);
+                player->dx = S16(d);
             }
             break;
         case SKI_VK_DOWN:
@@ -1986,16 +1979,36 @@ static void OnKeyDown(int vk)
         case SKI_VK_INSERT:
         case SKI_VK_NUMPAD0:
             if (z == 0) {
-                g_player->dz = 2;
+                player->dz = 2;
                 state = PS_JUMP;
-                if (g_player->dy > 4)
-                    g_player->dy = S16(g_player->dy - 4);
+                if (player->dy > 4)
+                    player->dy = S16(player->dy - 4);
             }
             break;
         }
     }
-    if (state != g_player->state)
-        SetActorState(g_player, state);
+    if (state != player->state)
+        SetActorState(player, state);
+}
+
+static void OnKeyDown(int vk)
+{
+    switch (vk) {
+    case SKI_VK_RETURN:
+        if (g_player != NULL)
+            return;
+        /* fall through: Enter restarts after being eaten */
+    case SKI_VK_F2:
+        RestartGame();
+        return;
+    case SKI_VK_ESCAPE:
+        plat_minimize();
+        return;
+    case SKI_VK_F3:
+        TogglePause();
+        return;
+    }
+    PlayerKeyDown(g_player, vk);
 }
 
 /* On the ground: direction from the cursor's angle. */
@@ -2046,17 +2059,13 @@ static void OnMouseMove(s16 x, s16 y)
     g_mouseSeen = 1;
 }
 
-static void OnMouseClick(void)
+static void PlayerMouseClick(Actor *player)
 {
     int state;
-    if (g_player == NULL) {
-        RestartGame();
-        return;
-    }
-    state = g_player->state;
+    state = player->state;
     if (state != PS_CRASHED) {
-        if (g_player->z == 0) {
-            g_player->dz = 4;
+        if (player->z == 0) {
+            player->dz = 4;
             state = PS_JUMP;
         } else if (state != PS_TUMBLE) {
             switch (state) {
@@ -2068,8 +2077,16 @@ static void OnMouseClick(void)
             }
         }
     }
-    if (state != g_player->state)
-        SetActorState(g_player, state);
+    if (state != player->state)
+        SetActorState(player, state);
+}
+
+static void OnMouseClick(void)
+{
+    if (g_player == NULL)
+        RestartGame();
+    else
+        PlayerMouseClick(g_player);
 }
 
 static void OnChar(int ch)
@@ -2096,7 +2113,7 @@ static void OnChar(int ch)
 
 /* ---- Public API --------------------------------------------------------- */
 
-int ski_init(int clientWidth, int clientHeight)
+static void InitSprites(void)
 {
     int i;
     for (i = 0; i < SKI_NUM_SPRITES; i++) {
@@ -2104,6 +2121,11 @@ int ski_init(int clientWidth, int clientHeight)
         g_sprites[i].height = ski_bitmaps[i].height;
         g_sprites[i].area = S16(ski_bitmaps[i].width * ski_bitmaps[i].height);
     }
+}
+
+int ski_init(int clientWidth, int clientHeight)
+{
+    InitSprites();
     if (!InitGameState())
         return 0;
     /* InitInstance, then WM_CREATE / WM_SIZE / WM_ACTIVATE. */
@@ -2252,4 +2274,355 @@ void ski_debug_warp(int x, int y)
 {
     if (g_player != NULL)
         SetActorPos(g_player, S16(x), S16(y), g_player->z);
+}
+
+/* ---- Public mountain ----------------------------------------------------
+ * Reuse the original steering, motion and obstacle responses, not its actor
+ * pool, viewport spawning, clocks or singleton course bookkeeping. */
+
+#define WORLD_OBJECTS 2048
+#define WORLD_CHASE_TICKS (5000 / SKI_TICK_MS)
+#define WORLD_EATING_TICKS (3000 / SKI_TICK_MS)
+
+typedef struct WorldPlayer {
+    uint32_t id;
+    unsigned runs;
+    Actor skier, yeti;
+    enum SkiWorldPhase phase;
+    unsigned phaseTicks;
+} WorldPlayer;
+
+struct SkiWorld {
+    uint32_t random, nextId;
+    int objectCount;
+    Actor objects[WORLD_OBJECTS]; /* immutable after generation, sorted by y */
+    WorldPlayer players[SKI_WORLD_MAX_PLAYERS];
+};
+
+static int WorldRandom(SkiWorld *w, int n)
+{
+    w->random = w->random * 214013u + 2531011u;
+    return (int)((w->random >> 16) & 0x7fff) % n;
+}
+
+static void WorldAddObject(SkiWorld *w, int type, int sprite, int x, int y)
+{
+    Actor *a;
+    SKI_ASSERT(w->objectCount < WORLD_OBJECTS, 0);
+    a = &w->objects[w->objectCount++];
+    a->multiplayer = 1;
+    a->type = type;
+    a->sprite = &g_sprites[0];
+    SetActorSprite(a, (uint16_t)sprite);
+    SetActorPos(a, S16(x), S16(y), 0);
+    a->wasDrawn = 1;
+    a->drawnY = a->y;
+}
+
+static int WorldObjectOrder(const void *left, const void *right)
+{
+    const Actor *a = left, *b = right;
+    if (a->y != b->y)
+        return a->y - b->y;
+    if (a->x != b->x)
+        return a->x - b->x;
+    return a->spriteId - b->spriteId;
+}
+
+SkiWorld *ski_world_create(uint32_t seed)
+{
+    SkiWorld *w = calloc(1, sizeof *w);
+    int x, y, column, r, type, sprite;
+    if (w == NULL)
+        return NULL;
+    InitSprites();
+    w->random = seed;
+    w->nextId = 1;
+
+    /* Fixed coordinates, including signs: no dependency on a client's size.
+     * Keep the top clear for joining and the bottom clear for the chase. */
+    WorldAddObject(w, AT_DECOR, SPR_TITLE, 0, -80);
+    WorldAddObject(w, AT_DECOR, SPR_SIGN_SLALOM, -450, 520);
+    WorldAddObject(w, AT_DECOR, SPR_SIGN_FREESTYLE, 0, 520);
+    WorldAddObject(w, AT_DECOR, SPR_SIGN_TREE_SLALOM, 416, 520);
+    for (column = 0; column < 3; column++) {
+        static const int starts[3][2] = {{-576, -320}, {-160, 160}, {320, 512}};
+        int finish = column == 0 ? SLALOM_FINISH_Y : LONG_FINISH_Y;
+        WorldAddObject(w, AT_DECOR, SPR_START_LEFT, starts[column][0], COURSE_START_Y);
+        WorldAddObject(w, AT_DECOR, SPR_START_RIGHT, starts[column][1], COURSE_START_Y);
+        WorldAddObject(w, AT_DECOR, SPR_FINISH_LEFT, starts[column][0], finish);
+        WorldAddObject(w, AT_DECOR, SPR_FINISH_RIGHT, starts[column][1], finish);
+    }
+    for (y = 960, column = 0; y < SLALOM_FINISH_Y; y += 320, column++)
+        WorldAddObject(w, AT_FLAG, column % 2 ? SPR_GATE_RIGHT : SPR_GATE_LEFT,
+                       column % 2 ? -400 : -496, y);
+    for (y = 1040, column = 0; y < LONG_FINISH_Y; y += 400, column++)
+        WorldAddObject(w, AT_FLAG, column % 2 ? SPR_GATE_RIGHT : SPR_GATE_LEFT,
+                       column % 2 ? 432 : 400, y);
+
+    for (y = 800; y < SKI_WORLD_CHASE_Y - 240; y += 160) {
+        for (column = 0; column < 8; column++) {
+            x = -1050 + column * 300 + WorldRandom(w, 161) - 80;
+            r = WorldRandom(w, 100);
+            if (r < 45)
+                continue;
+            if (x >= -620 && x <= -280 && y < SLALOM_FINISH_Y)
+                r = 85; /* clear slalom lane, apart from small moguls */
+            type = r < 65 ? AT_TREE : r < 78 ? AT_ROCK :
+                   r < 85 ? AT_BUMP : r < 93 ? AT_MOGUL : AT_JUMP;
+            sprite = type == AT_TREE ? SPR_TREE : type == AT_ROCK ? SPR_ROCK :
+                     type == AT_BUMP ? SPR_BUMP_SMALL :
+                     type == AT_MOGUL ? SPR_MOGUL : SPR_JUMP;
+            WorldAddObject(w, type, sprite, x, y + WorldRandom(w, 81) - 40);
+        }
+    }
+    qsort(w->objects, (size_t)w->objectCount, sizeof w->objects[0], WorldObjectOrder);
+    return w;
+}
+
+void ski_world_destroy(SkiWorld *world) { free(world); }
+
+static WorldPlayer *WorldFindPlayer(SkiWorld *w, uint32_t id)
+{
+    int i;
+    if (id == 0)
+        return NULL;
+    for (i = 0; i < SKI_WORLD_MAX_PLAYERS; i++)
+        if (w->players[i].id == id)
+            return &w->players[i];
+    return NULL;
+}
+
+static void WorldRespawn(WorldPlayer *p, int slot)
+{
+    memset(&p->skier, 0, sizeof p->skier);
+    memset(&p->yeti, 0, sizeof p->yeti);
+    p->skier.multiplayer = p->yeti.multiplayer = 1;
+    p->skier.sprite = p->yeti.sprite = &g_sprites[0];
+    p->skier.type = AT_PLAYER;
+    SetActorState(&p->skier, PS_LEFT);
+    SetActorPos(&p->skier, S16((slot % 17 - 8) * 20), 0, 0);
+    p->phase = SKI_WORLD_SKIING;
+    p->phaseTicks = 0;
+}
+
+uint32_t ski_world_join(SkiWorld *w)
+{
+    int i;
+    if (w->nextId == 0) /* do not reuse an ID after uint32 exhaustion */
+        return 0;
+    for (i = 0; i < SKI_WORLD_MAX_PLAYERS; i++) {
+        WorldPlayer *p = &w->players[i];
+        if (p->id == 0) {
+            p->id = w->nextId++;
+            p->runs = 0;
+            WorldRespawn(p, i);
+            return p->id;
+        }
+    }
+    return 0;
+}
+
+void ski_world_leave(SkiWorld *w, uint32_t id)
+{
+    WorldPlayer *p = WorldFindPlayer(w, id);
+    if (p != NULL)
+        p->id = 0;
+}
+
+int ski_world_key(SkiWorld *w, uint32_t id, int key)
+{
+    WorldPlayer *p = WorldFindPlayer(w, id);
+    if (p == NULL)
+        return 0;
+    if (key == SKI_VK_F2) {
+        WorldRespawn(p, (int)(p - w->players));
+        return 1;
+    }
+    if (p->phase == SKI_WORLD_EATEN)
+        return 0;
+    switch (key) {
+    case SKI_VK_LEFT: case SKI_VK_RIGHT: case SKI_VK_UP: case SKI_VK_DOWN:
+    case SKI_VK_HOME: case SKI_VK_END: case SKI_VK_PRIOR: case SKI_VK_NEXT:
+    case SKI_VK_INSERT:
+    case SKI_VK_NUMPAD0: case SKI_VK_NUMPAD0 + 1: case SKI_VK_NUMPAD0 + 2:
+    case SKI_VK_NUMPAD0 + 3: case SKI_VK_NUMPAD0 + 4: case SKI_VK_NUMPAD0 + 6:
+    case SKI_VK_NUMPAD0 + 7: case SKI_VK_NUMPAD0 + 8: case SKI_VK_NUMPAD0 + 9:
+        PlayerKeyDown(&p->skier, key);
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+int ski_world_aim(SkiWorld *w, uint32_t id, int dx, int dy)
+{
+    WorldPlayer *p = WorldFindPlayer(w, id);
+    Actor *a;
+    if (p == NULL || p->phase == SKI_WORLD_EATEN ||
+        dx < -2048 || dx > 2048 || dy < -2048 || dy > 2048)
+        return 0;
+    a = &p->skier;
+    if (a->state != PS_CRASHED && a->state != PS_TUMBLE)
+        SetActorState(a, a->z == 0 ? DirStateFromMouse(S16(dx), S16(dy)) :
+                                   AirStateFromMouse(S16(dx), S16(dy)));
+    return 1;
+}
+
+int ski_world_click(SkiWorld *w, uint32_t id)
+{
+    WorldPlayer *p = WorldFindPlayer(w, id);
+    if (p == NULL || p->phase == SKI_WORLD_EATEN)
+        return 0;
+    PlayerMouseClick(&p->skier);
+    return 1;
+}
+
+static int WorldClamp(int v, int low, int high)
+{
+    return v < low ? low : v > high ? high : v;
+}
+
+static SkiRect WorldActorRect(const Actor *a)
+{
+    SkiRect r;
+    r.left = a->x - a->sprite->width / 2;
+    r.right = r.left + a->sprite->width;
+    r.bottom = a->y - a->z;
+    r.top = r.bottom - a->sprite->height;
+    return r;
+}
+
+static void WorldStepPlayer(SkiWorld *w, WorldPlayer *p, int slot)
+{
+    Actor *a = &p->skier, *yeti = &p->yeti;
+    SkiRect ra, rb;
+    int i, state;
+
+    if (p->phase == SKI_WORLD_EATEN) {
+        ++p->phaseTicks;
+        state = p->phaseTicks < 12 ? YETI_EAT1 + (p->phaseTicks % 2) :
+                p->phaseTicks < 18 ? YETI_EAT3 : p->phaseTicks < 25 ? YETI_EAT4 :
+                YETI_EAT5 + (p->phaseTicks % 2);
+        SetActorState(yeti, state);
+        if (p->phaseTicks >= WORLD_EATING_TICKS) {
+            ++p->runs;
+            WorldRespawn(p, slot);
+        }
+        return;
+    }
+
+    /* Remember previous positions even if nobody is watching. */
+    a->wasDrawn = 1;
+    a->drawnY = a->y;
+    UpdateActor(a);
+    a->x = S16(WorldClamp(a->x, -SKI_WORLD_HALF_WIDTH, SKI_WORLD_HALF_WIDTH));
+    a->y = S16(WorldClamp(a->y, 0, SKI_WORLD_END_Y));
+    ra = WorldActorRect(a);
+    for (i = 0; i < w->objectCount; i++) {
+        const Actor *object = &w->objects[i];
+        Actor obstacle;
+        if (object->y < ra.top)
+            continue;
+        rb = WorldActorRect(object);
+        if (!RectsOverlap(&ra, &rb))
+            continue;
+        obstacle = *object; /* terrain is not consumed/changed by an individual run */
+        HandleCollision(a, &obstacle);
+    }
+
+    if (p->phase == SKI_WORLD_SKIING && a->y > SKI_WORLD_CHASE_Y) {
+        p->phase = SKI_WORLD_CHASED;
+        p->phaseTicks = 0;
+        yeti->type = AT_YETI_DOWNHILL;
+        SetActorState(yeti, YETI_RUN_UP1);
+        SetActorPos(yeti, a->x, S16(WorldClamp(a->y + 160, 0, SKI_WORLD_END_Y)), 0);
+        return;
+    }
+    if (p->phase != SKI_WORLD_CHASED)
+        return;
+
+    ++p->phaseTicks;
+    yeti->dx = S16(WorldClamp(a->x - yeti->x, -16, 16));
+    yeti->dy = S16(WorldClamp(a->y - yeti->y, -10, 26));
+    SetActorPos(yeti, S16(yeti->x + yeti->dx), S16(yeti->y + yeti->dy), 0);
+    state = yeti->dy < 0 ? YETI_RUN_UP1 :
+            yeti->dx < 0 ? YETI_RUN_LEFT1 : YETI_RUN_RIGHT1;
+    SetActorState(yeti, state + (p->phaseTicks % 2));
+    ra = WorldActorRect(a);
+    rb = WorldActorRect(yeti);
+    if (RectsOverlap(&ra, &rb) || p->phaseTicks >= WORLD_CHASE_TICKS) {
+        /* A bounded chase ends even if a player stops, jumps or turns uphill. */
+        SetActorPos(yeti, a->x, a->y, 0);
+        SetActorState(yeti, YETI_EAT1);
+        a->dx = a->dy = a->dz = 0;
+        p->phase = SKI_WORLD_EATEN;
+        p->phaseTicks = 0;
+    }
+}
+
+void ski_world_step(SkiWorld *w)
+{
+    int i;
+    for (i = 0; i < SKI_WORLD_MAX_PLAYERS; i++)
+        if (w->players[i].id != 0)
+            WorldStepPlayer(w, &w->players[i], i);
+}
+
+static void WorldPlayerSnapshot(const WorldPlayer *p, SkiWorldPlayer *out)
+{
+    const Actor *a = &p->skier;
+    memset(out, 0, sizeof *out);
+    out->id = p->id;
+    out->runs = p->runs;
+    out->x = a->x; out->y = a->y; out->z = a->z;
+    out->dx = a->dx; out->dy = a->dy; out->dz = a->dz;
+    out->state = a->state;
+    out->sprite = p->phase == SKI_WORLD_EATEN ? 0 : a->spriteId;
+    out->style = a->stylePoints;
+    out->phase = p->phase;
+    out->yeti_x = p->yeti.x;
+    out->yeti_y = p->yeti.y;
+    out->yeti_sprite = p->yeti.spriteId;
+}
+
+int ski_world_player(const SkiWorld *w, uint32_t id, SkiWorldPlayer *out)
+{
+    int i;
+    if (id == 0)
+        return 0;
+    for (i = 0; i < SKI_WORLD_MAX_PLAYERS; i++) {
+        if (w->players[i].id == id) {
+            WorldPlayerSnapshot(&w->players[i], out);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int ski_world_players(const SkiWorld *w, SkiWorldPlayer *out, int capacity)
+{
+    int i, n = 0;
+    for (i = 0; i < SKI_WORLD_MAX_PLAYERS; i++) {
+        if (w->players[i].id == 0)
+            continue;
+        if (n < capacity)
+            WorldPlayerSnapshot(&w->players[i], &out[n]);
+        n++;
+    }
+    return n;
+}
+
+int ski_world_object_count(const SkiWorld *w) { return w->objectCount; }
+
+int ski_world_object(const SkiWorld *w, int index, SkiWorldObject *out)
+{
+    const Actor *a;
+    if (index < 0 || index >= w->objectCount)
+        return 0;
+    a = &w->objects[index];
+    out->sprite = a->spriteId;
+    out->x = a->x;
+    out->y = a->y;
+    return 1;
 }

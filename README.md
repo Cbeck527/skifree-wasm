@@ -45,6 +45,33 @@ It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first 
 - Esc does nothing (a page can't minimize itself). Switching tabs or windows pauses the game, like losing focus on the desktop.
 - Browser shortcuts (Ctrl/Cmd/Alt combinations, F5, F11 for full screen) keep working; the game only takes F2 and F3.
 
+## Multiplayer foundation (in progress)
+
+The browser still runs the original single-player game. The first multiplayer
+checkpoint is a headless public-mountain simulation, exposed by `src/ski_world.h`
+and implemented alongside the shared physics in `src/ski.c`. Networking and a
+multiplayer browser frontend are not connected yet.
+
+- A seed generates one fixed mountain, including course signs, gates, trees,
+  rocks, moguls, bumps and jumps. Camera size and movement do not change it.
+- Up to 128 skiers have independent input, motion, style points and lifecycles.
+  They collide with terrain, not one another. This is a simulation limit, not
+  a measured network capacity.
+- Each skier gets a personal yeti chase beyond 2000 m. The chase lasts at most
+  five seconds, followed by a three-second eating animation and an automatic
+  respawn. F2 also resets only that skier; neither kind of reset regenerates
+  the mountain or affects other players.
+- The world advances in explicit 40 ms steps, regardless of window focus or
+  wall-clock time. Snapshots contain world positions and sprite IDs, leaving
+  camera projection and transport to the frontend/server.
+
+Run `make world-test` for this checkpoint, or `make test` for it and the original
+single-player checks. `make web-test` runs the same multiplayer contracts under
+WASM/Node and compares their output with native execution. Course timing/gate
+results, moving NPCs, mouse steering, names/colors, networking and browser
+integration remain later work; multiplayer style points currently cover the
+whole run rather than only the freestyle course.
+
 ## Layout
 
 | Path | What |
@@ -66,6 +93,7 @@ It's the same SDL frontend, compiled with emscripten (`-sUSE_SDL=2`). The first 
 | `make` | `build/port/skifree` (SDL) and `build/port/skifree-sim` (core only, no SDL) |
 | `make run` | Build and play |
 | `make test` | Determinism with a golden hash, the Yeti at 2000 m, all three courses finished, screenshots |
+| `make world-test` | Headless shared-mountain, multi-skier, collision and respawn contracts |
 | `make sanitize` | 2 × 30,000 ticks of random play under ASan + UBSan |
 | `make web` | Browser build in `build/web/` |
 | `make serve` | Browser build, served at http://localhost:8000 |

@@ -35,7 +35,7 @@ $(OUT)/assets.c: tools/gen_assets.py $(EXE) | $(OUT)
 $(OUT)/assets.o: $(OUT)/assets.c src/assets.h
 	$(CC) $(CFLAGS) -Isrc -c $< -o $@
 
-$(OUT)/ski.o: src/ski.c src/ski.h src/assets.h src/platform.h | $(OUT)
+$(OUT)/ski.o: src/ski.c src/ski.h src/ski_world.h src/assets.h src/platform.h | $(OUT)
 	$(CC) $(CFLAGS) -Isrc -c $< -o $@
 
 $(OUT)/headless.o: src/headless.c src/headless.h src/ski.h | $(OUT)
@@ -57,7 +57,13 @@ $(OUT)/skifree-sim: $(OUT)/ski.o $(OUT)/headless.o $(OUT)/sim.o $(OUT)/assets.o
 run: $(OUT)/skifree
 	$(OUT)/skifree
 
-test: all
+$(OUT)/world-test: tests/world.c $(OUT)/ski.o $(OUT)/assets.o src/ski_world.h src/ski.h src/platform.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -Isrc tests/world.c $(OUT)/ski.o $(OUT)/assets.o -lm -o $@
+
+world-test: $(OUT)/world-test
+	$(OUT)/world-test
+
+test: all world-test
 	tests/run.sh $(OUT)
 
 # Memory and UB checks: 2 x 30000 ticks of random play on the SDL-free
@@ -79,7 +85,7 @@ WEB := build/web
 EMCC := emcc
 WEB_CFLAGS := -O2 -Wall -Wextra -std=c99
 WEB_SRC := src/ski.c src/headless.c src/main_sdl.c $(OUT)/assets.c
-CORE_H := src/ski.h src/assets.h src/platform.h src/headless.h
+CORE_H := src/ski.h src/ski_world.h src/assets.h src/platform.h src/headless.h
 
 web: $(WEB)/index.html
 
@@ -101,10 +107,20 @@ $(WEBSIM)/skifree-sim: src/ski.c src/headless.c tests/sim.c $(OUT)/assets.c $(CO
 	printf '#!/bin/sh\nexec node "$$(dirname "$$0")/skifree-sim.js" "$$@"\n' > $@
 	chmod +x $@
 
-web-test: $(OUT)/skifree-sim $(WEBSIM)/skifree-sim
+$(WEBSIM)/world-test.js: tests/world.c src/ski.c $(OUT)/assets.c $(CORE_H)
+	mkdir -p $(WEBSIM)
+	$(EMCC) $(WEB_CFLAGS) -sENVIRONMENT=node -sEXIT_RUNTIME=1 -Isrc \
+		tests/world.c src/ski.c $(OUT)/assets.c -lm -o $@
+
+web-test: $(OUT)/skifree-sim $(WEBSIM)/skifree-sim $(OUT)/world-test $(WEBSIM)/world-test.js
 	tests/web.sh $(OUT)/skifree-sim $(WEBSIM)/skifree-sim
+	$(OUT)/world-test > $(OUT)/world-native.txt
+	node $(WEBSIM)/world-test.js > $(WEBSIM)/world-wasm.txt
+	diff -u $(OUT)/world-native.txt $(WEBSIM)/world-wasm.txt
+	@cat $(OUT)/world-native.txt
+	@echo 'multiplayer wasm matches native'
 
 clean:
 	rm -rf $(OUT) $(SAN) $(WEB) $(WEBSIM)
 
-.PHONY: all run test sanitize web serve web-test clean
+.PHONY: all run test world-test sanitize web serve web-test clean
