@@ -1,5 +1,9 @@
 # Fly.io deployment
 
+Run commands from the repository root. See the [multiplayer guide](multiplayer.md)
+for shared-world behavior and limitations, and [browser setup](browser.md) for
+local frontend development.
+
 Status: **deployed to Fly.io** at https://ski.becker.foo. First deployed on
 2026-11-05, in organization `personal`. Release `v1` runs image
 `registry.fly.io/skifree-multiplayer:deployment-01M6PX0KVDSZW5Y521HMQMKFR1` on
