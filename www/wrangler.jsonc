@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cmb-software-skifree-wasm",
+  "compatibility_date": "2026-08-06",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "cmb.software/skifree-wasm/*",
+      "zone_name": "cmb.software"
+    }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}

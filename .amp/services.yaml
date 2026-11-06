@@ -6,3 +6,11 @@ services:
     port: 8000
     portal:
       title: SkiFree
+  www:
+    # The cmb.software brochure site (www/), with Astro's live reload.
+    cwd: www
+    command: pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0 --port "$PORT"
+    health: /skifree-wasm/
+    portal:
+      url: /skifree-wasm/
+      title: Brochure site

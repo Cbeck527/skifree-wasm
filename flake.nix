@@ -16,7 +16,7 @@
     in
     {
       devShells = forAllSystems (pkgs: let
-        # Both shells consume the same locked npm graph, including the Railway SDK.
+        # Both shells consume the same locked npm graph.
         npmDeps = pkgs.importNpmLock.buildNodeModules {
           npmRoot = ./.;
           inherit (pkgs) nodejs;
@@ -109,8 +109,8 @@
             nodejs
             importNpmLock.hooks.linkNodeModulesHook
 
-            # Railway project setup, deployment and operational tooling.
-            railway
+            # The www/ brochure site (Astro + Wrangler).
+            pnpm
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not

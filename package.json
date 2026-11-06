@@ -6,13 +6,9 @@
   },
   "scripts": {
     "start": "node server/server.mjs",
-    "test": "node --test tests/server.test.mjs",
-    "railway:check": "railway-iac-ts evaluate"
+    "test": "node --test tests/server.test.mjs"
   },
   "dependencies": {
     "ws": "8.22.0"
-  },
-  "devDependencies": {
-    "railway": "3.5.10"
   }
 }

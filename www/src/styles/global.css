@@ -1,0 +1,294 @@
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("../assets/fonts/TX-02-UltraCondensed.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("../assets/fonts/TX-02-Bold-UltraCondensed.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("../assets/fonts/TX-02-ExtraBold-UltraCondensed.woff2")
+    format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  /* The 16-color palette ski32.exe's sprites are drawn in. */
+  --snow: #ffffff;
+  --ink: #000000;
+  --silver: #c0c0c0;
+  --yellow: #ffff00;
+  --blue: #0000ff;
+
+  --background: var(--snow);
+  --text: #1a1a1a;
+  --muted: #555555;
+  --line: var(--ink);
+  --mono:
+    "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--background);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  top: 12px;
+  left: 12px;
+  padding: 10px 14px;
+  transform: translateY(-150%);
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.page {
+  width: min(920px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 42px 0 36px;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 26px;
+  border-bottom: 2px solid var(--line);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.brand {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.brand:hover {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.brand:focus-visible,
+.github-link:focus-visible,
+.button:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 5px;
+}
+
+.project {
+  color: var(--blue);
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  color: var(--blue);
+}
+
+.github-link svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.hero {
+  padding: 64px 4px 24px;
+}
+
+h1 {
+  max-width: 100%;
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(48px, 8vw, 72px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.intro {
+  max-width: 720px;
+  margin: 29px 0 0;
+  font-size: clamp(23px, 3vw, 28px);
+  line-height: 1.42;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 36px;
+}
+
+.button {
+  display: inline-block;
+  padding: 13px 20px;
+  border: 2px solid var(--ink);
+  background: var(--snow);
+  box-shadow: 4px 4px 0 var(--ink);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--silver);
+}
+
+.button:active {
+  box-shadow: none;
+  transform: translate(4px, 4px);
+}
+
+/* The yellow of the course-start banners. */
+.button-primary,
+.button-primary:hover {
+  background: var(--yellow);
+}
+
+.button-primary:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* The capture includes its own browser frame and shadow. */
+.screenshot {
+  display: block;
+  width: calc(100% + 64px);
+  max-width: none;
+  height: auto;
+  margin: 32px -32px 0;
+}
+
+.site-footer {
+  padding-top: 28px;
+  border-top: 2px solid var(--line);
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer .fineprint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .page {
+    width: calc(100% - 60px);
+    padding: 14px 0 20px;
+  }
+
+  .site-header {
+    gap: 9px;
+    padding: 0 1px 20px;
+    font-size: 14px;
+    line-height: 25px;
+  }
+
+  .github-link {
+    width: 24px;
+    height: 24px;
+  }
+
+  .github-link svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .hero {
+    padding: 40px 1px 16px;
+  }
+
+  h1 {
+    font-size: clamp(42px, 12vw, 58px);
+    line-height: 0.96;
+  }
+
+  .intro {
+    margin-top: 20px;
+    font-size: 19px;
+    line-height: 1.45;
+  }
+
+  .actions {
+    margin-top: 26px;
+  }
+
+  .button {
+    width: 100%;
+    font-size: 16px;
+    text-align: center;
+  }
+
+  .screenshot {
+    width: calc(100% + 24px);
+    margin: 20px -12px 0;
+  }
+
+  .site-footer {
+    padding: 18px 1px 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .site-footer .fineprint {
+    font-size: 12px;
+  }
+}

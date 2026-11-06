@@ -99,18 +99,14 @@ restarting the process removes everyone, and clients reconnect to the same seede
 terrain. Authentication, persistence and production abuse protection are not
 part of this checkpoint.
 
-### Railway deployment
+### Production
 
-See [the Railway project specification](server/RAILWAY.md) for the single-service
-topology, image build contract, resource targets, variables, rollout/reset policy,
-and launch checks. The root `Dockerfile` builds a non-root Node image with both
-WASM bundles; `.railway/railway.ts` defines one always-on mountain service.
-`nix develop` includes the pinned Railway CLI and SDK; `npm run railway:check`
-validates the configuration offline. The public mountain is deployed at
-[public-mountain-production.up.railway.app](https://public-mountain-production.up.railway.app)
-on one replica in US East (Virginia). One `production` environment serves both
-testing and public play; releases are manual and reset the room. Sustained-load
-benchmarks, spend alerts and external uptime monitoring remain to be set up.
+The public mountain is live at [ski.becker.foo](https://ski.becker.foo/), served
+by one Fly.io Machine (app `skifree-multiplayer`) in US East (`iad`) from the
+root `Dockerfile`, a non-root Node image with both WASM bundles. Releases are
+manual and reset the room. The brochure page at
+[cmb.software/skifree-wasm](https://cmb.software/skifree-wasm/) is a separate
+static site in `www/` (see `www/README.md`).
 
 ## Layout
 
@@ -127,6 +123,7 @@ benchmarks, spend alerts and external uptime monitoring remain to be set up.
 | `server/server.mjs`, `src/server.c` | Public HTTP/WebSocket server and authoritative WASM boundary |
 | `src/headless.c`, `tests/` | Headless runner (scripted input, simulated clock), test suite, fuzzer |
 | `tools/gen_assets.py` | Extracts bitmaps, strings and data tables from `ski32.exe` into C at build time |
+| `www/` | Brochure site for https://cmb.software/skifree-wasm/ (Astro on Cloudflare; see `www/README.md`) |
 
 ## Make targets
 

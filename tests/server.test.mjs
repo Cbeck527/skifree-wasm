@@ -221,7 +221,7 @@ test('SIGTERM exits cleanly within the drain window with a stalled HTTP reader',
   const [code, signal] = await exited;
   assert.equal(code, 0);
   assert.equal(signal, null);
-  assert.ok(performance.now() - started < 4800, 'must exit before Railway force-kills the process at five seconds');
+  assert.ok(performance.now() - started < 4800, 'must exit before the host force-kills the process at five seconds');
 });
 
 // Run the actual browser transport with a clock and a socket whose close never

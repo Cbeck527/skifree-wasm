@@ -1,0 +1,23 @@
+{
+  "name": "skifree-wasm-site",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev": "astro dev",
+    "check": "astro check",
+    "build": "astro build",
+    "preview": "astro build && wrangler dev",
+    "deploy": "astro build && wrangler deploy"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/node": "24.19.2",
+    "astro": "7.3.8",
+    "prettier": "3.9.9",
+    "prettier-plugin-astro": "1.1.1",
+    "sharp": "0.35.5",
+    "typescript": "^6.0.3",
+    "wrangler": "4.149.0"
+  }
+}
