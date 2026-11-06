@@ -6,7 +6,8 @@
   },
   "scripts": {
     "start": "node server/server.mjs",
-    "test": "node --test tests/server.test.mjs"
+    "test": "node --test tests/server.test.mjs",
+    "fly:check": "flyctl config validate --strict"
   },
   "dependencies": {
     "ws": "8.22.0"

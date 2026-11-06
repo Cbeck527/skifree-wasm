@@ -111,6 +111,9 @@
 
             # The www/ brochure site (Astro + Wrangler).
             pnpm
+
+            # Fly.io app setup, deployment and operational tooling.
+            flyctl
           ];
 
           # Not included: wine (to actually run the .exe) — nixpkgs' wine is not

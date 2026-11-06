@@ -108,6 +108,22 @@ manual and reset the room. The brochure page at
 [cmb.software/skifree-wasm](https://cmb.software/skifree-wasm/) is a separate
 static site in `www/` (see `www/README.md`).
 
+See [the Fly.io deployment guide](server/FLY.md) for configuration, local checks,
+manual releases and the Railway cutover. `fly.toml` configures an always-on
+Machine with one shared vCPU and 512 MiB RAM. Keep exactly **one Machine**:
+the first deploy must use `flyctl deploy --ha=false`, since Fly otherwise
+creates a second Machine and a separate mountain.
+
+`nix develop` includes the pinned Fly CLI. `npm run fly:check` validates the
+configuration against Fly's platform and **requires Fly authentication**; the
+guide also provides a credential-free TOML syntax check.
+
+The former Railway deployment is stopped; its old endpoint returns HTTP 404.
+The Railway project and service are retained, but restoring Railway would
+require a fresh deployment.
+Sustained-load benchmarks, spend alerts and external uptime monitoring remain
+to be set up.
+
 ## Layout
 
 | Path | What |

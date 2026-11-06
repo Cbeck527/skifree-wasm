@@ -1,0 +1,42 @@
+# Production app in the personal Fly organization.
+app = "skifree-multiplayer"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = 5
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Update the singleton in place: downtime and a room reset are intentional.
+  strategy = "rolling"
+  max_unavailable = 1
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/health"
+    timeout = "2s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
+# Machine count is not configured here. First deploy MUST use --ha=false;
+# keep exactly one Machine total (including stopped Machines), only in iad.
